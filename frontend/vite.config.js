@@ -10,6 +10,7 @@ export default defineConfig({
       '/api': {
         target: 'https://api-nexus-uovh.onrender.com',
         changeOrigin: true,
+        secure: false
       },
     },
   },
