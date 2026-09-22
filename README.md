@@ -1,38 +1,99 @@
-# API Nexus
+<div align="center">
 
-A collaborative API dependency mapping and impact-analysis platform. Import an OpenAPI spec, get an auto-generated dependency graph, edit it as a team, and freeze any node to see exactly what breaks.
+  <h1>🌐 API Nexus</h1>
 
-**Stack:** React (Vite) · FastAPI · PostgreSQL
+  <p><b>Collaborative API Dependency Mapping & Impact Analysis Platform</b></p>
 
-Demo Link : <a href = "https://apinexus.vercel.app "> API Nexus </a>
+  <p>
+    Import OpenAPI specs, auto-generate interactive dependency graphs, collaborate with your team, and simulate breaking changes before pushing to production.
+  </p>
 
-![Login](<img width="2859" height="1537" alt="image" src="https://github.com/user-attachments/assets/23ec3f08-e5c3-4286-9f0b-9becc0dd94f7" />
-)
+  <p>
+    <a href="https://apinexus.vercel.app/"><strong>Explore the Live Demo »</strong></a>
+  </p>
 
-## Screenshots
+  <p>
+    <img src="https://img.shields.io/badge/React-20232A?style=for-the-badge&logo=react&logoColor=61DAFB" alt="React" />
+    <img src="https://img.shields.io/badge/Vite-646CFF?style=for-the-badge&logo=vite&logoColor=white" alt="Vite" />
+    <img src="https://img.shields.io/badge/FastAPI-005571?style=for-the-badge&logo=fastapi" alt="FastAPI" />
+    <img src="https://img.shields.io/badge/PostgreSQL-316192?style=for-the-badge&logo=postgresql&logoColor=white" alt="PostgreSQL" />
+    <img src="https://img.shields.io/badge/Deployment-Vercel-000000?style=for-the-badge&logo=vercel&logoColor=white" alt="Vercel" />
+  </p>
 
-| Projects Dashboard | Dependency Graph |
-|---|---|
-| ![Projects Dashboard](<img width="2866" height="1530" alt="image" src="https://github.com/user-attachments/assets/70e52e7e-0774-48c3-b257-3f7338cdf861" />
-) | ![Graph View](
-) |
+  <br />
 
-| Insights | Activity Log |
-|---|---|
-| ![Insights](
-) | ![Activity Log](
-) |
+  <img src="https://github.com/user-attachments/assets/469fd959-fe11-41f3-b334-14bd5cafe99a" alt="API Nexus Hero" width="100%" />
 
-## Features
+</div>
 
-- **Auth & RBAC** — JWT-based login, email verification, password reset, Leader/Member/Viewer roles
-- **OpenAPI import** — parses specs into an auto-generated dependency graph, with version history and diffing
-- **Collaborative graph editing** — add/edit/delete nodes and edges, comments, @mentions, change suggestions
-- **Freeze & impact analysis** — select a node, freeze it, and see everything downstream that's affected
-- **What-if simulation** — preview the impact of removing or failing a node before doing it
-- **Insights** — dependency heatmap, high-fan-in detection, missing-auth and isolated-endpoint findings
-- **Export** — graph as JSON/CSV/SVG/PNG, printable PDF report
-- **Audit log & notifications** — full activity trail per project
 
-## Getting Started
+---
 
+## 📖 Overview
+
+**API Nexus** solves the microservice dependency black box. When working with complex API architectures, understanding downstream impacts during breaking changes is critical. 
+
+By parsing OpenAPI specifications, API Nexus automatically constructs visual dependency trees, allows real-time team collaboration, and features a powerful **Freeze & Impact Analysis engine** to show you exactly what will break before a deployment happens.
+
+---
+
+## ✨ Key Features
+
+- **🔐 Auth & RBAC** — Secure JWT authentication with email verification, password reset workflows, and granular role permissions (`Leader`, `Member`, `Viewer`).
+- **📑 OpenAPI Parsing & Diffing** — Instantly convert OpenAPI (Swagger) specs into structured dependency graphs with built-in version history and diff tracking.
+- **🤝 Real-Time Collaboration** — Add, edit, or delete nodes and edges alongside teammates. Supports inline comments, `@mentions`, and proposed change suggestions.
+- **❄️ Freeze & Impact Analysis** — Lock down any endpoint or service node to visually highlight all impacted downstream dependencies across your architectural tree.
+- **🧪 What-If Simulation** — Safely model the removal, migration, or downtime of specific endpoints before altering production environments.
+- **📊 Architectural Insights** — Automated system health audits detailing dependency heatmaps, high-fan-in hotspots, unauthenticated endpoints, and isolated services.
+- **📦 Multi-Format Export** — Export graph diagrams as `JSON`, `CSV`, `SVG`, or `PNG`, or generate clean, print-ready PDF impact reports.
+- **📜 Audit Log & Notifications** — Complete visibility into system edits, project history, and collaborative activity.
+
+---
+
+## 📸 Screenshots
+
+<table>
+  <tr>
+    <td width="50%" align="center">
+      <b>Projects Dashboard</b><br/><br/>
+      <img src="https://github.com/user-attachments/assets/a2ed032c-0b05-4554-9650-294540461bce" alt="Projects Dashboard" width="100%"/>
+    </td>
+    <td width="50%" align="center">
+      <b>Interactive Dependency Graph</b><br/><br/>
+      <img src="https://github.com/user-attachments/assets/e328a9fd-54d4-49c5-8214-cc2115cda5b4" alt="Graph View" width="100%"/>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" align="center">
+      <b>Architectural Insights</b><br/><br/>
+      <img src="https://github.com/user-attachments/assets/ac013084-7609-4353-be7e-1cf31ad88a49" alt="Insights" width="100%"/>
+    </td>
+    <td width="50%" align="center">
+      <b>Activity & Audit Log</b><br/><br/>
+      <img src="https://github.com/user-attachments/assets/bcbda6f7-799c-4f3e-8574-9fb9a18c73aa" alt="Activity Log" width="100%"/>
+    </td>
+  </tr>
+</table>
+
+---
+
+## 🛠️ Tech Stack
+
+### Frontend
+- **Framework:** React 18 + Vite
+- **UI & Styling:** Tailwind CSS, Radix UI
+- **Graph Engine:** React Flow / Cytoscape.js
+- **State & Query Management:** React Query, Zustand
+
+### Backend
+- **Framework:** FastAPI (Python 3.10+)
+- **ORM & DB Access:** SQLAlchemy / SQLModel
+- **Auth:** JWT, Passlib (Bcrypt)
+- **Parser:** OpenAPI Spec Validator
+
+### Database & Hosting
+- **Database:** PostgreSQL
+- **Frontend Hosting:** Vercel
+- **Backend Hosting:** Render / Railway
+
+---
