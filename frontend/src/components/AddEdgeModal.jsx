@@ -1,5 +1,6 @@
 import { useState } from "react";
 import Modal from "./Modal";
+import Alert from "./ui/Alert";
 import { api } from "../api/client";
 import { useToast } from "../context/ToastContext";
 
@@ -45,16 +46,16 @@ export default function AddEdgeModal({ projectId, nodes, onClose, onCreated }) {
       onClose={onClose}
       footer={
         <>
-          <button className="btn" onClick={onClose}>Cancel</button>
-          <button className="btn btn-primary" form="add-edge-form" type="submit" disabled={saving || nodes.length < 2}>
+          <button type="button" className="btn" onClick={onClose}>Cancel</button>
+          <button className={`btn btn-primary${saving ? " is-loading" : ""}`} form="add-edge-form" type="submit" disabled={saving || nodes.length < 2} aria-busy={saving}>
             {saving ? "Linking…" : "Add link"}
           </button>
         </>
       }
     >
-      {error && <div className="auth-error">{error}</div>}
+      {error && <Alert>{error}</Alert>}
       {nodes.length < 2 ? (
-        <p style={{ fontSize: 13 }}>You need at least two nodes on the graph before you can link them.</p>
+        <p className="text-sm">You need at least two nodes on the graph before you can link them.</p>
       ) : (
         <form id="add-edge-form" onSubmit={handleSubmit}>
           <div className="field">

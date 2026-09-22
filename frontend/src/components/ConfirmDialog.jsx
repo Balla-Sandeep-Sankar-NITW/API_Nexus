@@ -8,16 +8,16 @@ export default function ConfirmDialog({ title, message, confirmLabel = "Confirm"
       width="400px"
       footer={
         <>
-          <button className="btn" onClick={onCancel}>
+          <button type="button" className="btn" onClick={onCancel}>
             Cancel
           </button>
-          <button className={danger ? "btn btn-danger" : "btn btn-primary"} onClick={onConfirm}>
+          <button type="button" className={danger ? "btn btn-danger-solid" : "btn btn-primary"} onClick={onConfirm}>
             {confirmLabel}
           </button>
         </>
       }
     >
-      <p style={{ margin: 0, fontSize: 13, color: "var(--ink-700)" }}>{message}</p>
+      <p className="text-sm" style={{ color: "var(--ink-700)" }}>{message}</p>
     </Modal>
   );
 }

@@ -1,6 +1,17 @@
 import { useEffect, useState } from "react";
 import { api } from "../api/client";
 import { useToast } from "../context/ToastContext";
+import EmptyState from "./ui/EmptyState";
+import LoadingRow from "./ui/LoadingRow";
+
+const DIFF_GROUPS = [
+  ["endpoints_added", "Endpoints added", "added"],
+  ["endpoints_removed", "Endpoints removed", "removed"],
+  ["schemas_added", "Schemas added", "added"],
+  ["schemas_removed", "Schemas removed", "removed"],
+  ["security_schemes_added", "Security schemes added", "added"],
+  ["security_schemes_removed", "Security schemes removed", "removed"],
+];
 
 export default function VersionsPanel({ projectId }) {
   const [versions, setVersions] = useState(null);
@@ -43,100 +54,97 @@ export default function VersionsPanel({ projectId }) {
   }
 
   if (versions === null) {
-    return <div className="loading-row"><span className="spinner" />Loading versions…</div>;
+    return <LoadingRow>Loading versions…</LoadingRow>;
   }
 
   if (versions.length === 0) {
     return (
-      <div className="empty-state panel">
-        <h3>No OpenAPI imports yet</h3>
-        <p>Once a spec is imported, every version is kept here so you can compare changes over time.</p>
-      </div>
+      <EmptyState title="No OpenAPI imports yet">
+        Once a spec is imported, every version is kept here so you can compare changes over time.
+      </EmptyState>
     );
   }
 
+  const groups = diff ? DIFF_GROUPS.filter(([key]) => diff[key] && diff[key].length > 0) : [];
+
   return (
-    <div>
-      <div className="panel" style={{ marginBottom: 16 }}>
-        <div className="panel-header"><h2 style={{ margin: 0 }}>Import history</h2></div>
-        <table className="table">
-          <thead>
-            <tr><th>Version</th><th>Title</th><th>Imported</th></tr>
-          </thead>
-          <tbody>
-            {versions.map((v) => (
-              <tr key={v.id}>
-                <td className="mono">{v.version_label}</td>
-                <td>{v.title}</td>
-                <td>{new Date(v.created_at).toLocaleString()}</td>
+    <>
+      <section className="section">
+        <div className="section-head"><h2>Import history</h2></div>
+        <div className="table-wrap stack">
+          <table className="table">
+            <thead>
+              <tr>
+                <th scope="col">Version</th>
+                <th scope="col">Title</th>
+                <th scope="col">Imported</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            <tbody>
+              {versions.map((v) => (
+                <tr key={v.id}>
+                  <td className="primary mono">{v.version_label}</td>
+                  <td data-label="Title">{v.title}</td>
+                  <td className="text-muted tabular" data-label="Imported">{new Date(v.created_at).toLocaleString()}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
 
       {versions.length >= 2 && (
-        <div className="panel">
-          <div className="panel-header"><h2 style={{ margin: 0 }}>Compare versions</h2></div>
-          <div className="panel-body">
-            <div style={{ display: "flex", gap: 10, alignItems: "flex-end", marginBottom: 14 }}>
-              <div className="field" style={{ marginBottom: 0, flex: 1 }}>
-                <label>Newer</label>
-                <select value={compareA} onChange={(e) => setCompareA(e.target.value)}>
-                  {versions.map((v) => (
-                    <option key={v.id} value={v.id}>{v.version_label} — {new Date(v.created_at).toLocaleDateString()}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="field" style={{ marginBottom: 0, flex: 1 }}>
-                <label>Older</label>
-                <select value={compareB} onChange={(e) => setCompareB(e.target.value)}>
-                  {versions.map((v) => (
-                    <option key={v.id} value={v.id}>{v.version_label} — {new Date(v.created_at).toLocaleDateString()}</option>
-                  ))}
-                </select>
-              </div>
-              <button className="btn btn-primary btn-sm" onClick={runDiff} disabled={loadingDiff}>
-                {loadingDiff ? "Comparing…" : "Compare"}
-              </button>
+        <section className="section">
+          <div className="section-head"><h2>Compare versions</h2></div>
+          <div className="compare-controls">
+            <div className="field">
+              <label htmlFor="compare-newer">Newer</label>
+              <select id="compare-newer" value={compareA} onChange={(e) => setCompareA(e.target.value)}>
+                {versions.map((v) => (
+                  <option key={v.id} value={v.id}>{v.version_label} ({new Date(v.created_at).toLocaleDateString()})</option>
+                ))}
+              </select>
             </div>
-
-            {diff && (
-              <div>
-                <DiffGroup label="Endpoints added" items={diff.endpoints_added} color="green" />
-                <DiffGroup label="Endpoints removed" items={diff.endpoints_removed} color="red" />
-                <DiffGroup label="Schemas added" items={diff.schemas_added} color="green" />
-                <DiffGroup label="Schemas removed" items={diff.schemas_removed} color="red" />
-                <DiffGroup label="Security schemes added" items={diff.security_schemes_added} color="green" />
-                <DiffGroup label="Security schemes removed" items={diff.security_schemes_removed} color="red" />
-                {diff.endpoints_added.length === 0 &&
-                  diff.endpoints_removed.length === 0 &&
-                  diff.schemas_added.length === 0 &&
-                  diff.schemas_removed.length === 0 &&
-                  diff.security_schemes_added.length === 0 &&
-                  diff.security_schemes_removed.length === 0 && (
-                    <p style={{ fontSize: 13, color: "var(--ink-500)" }}>No structural differences between these versions.</p>
-                  )}
-              </div>
-            )}
+            <div className="field">
+              <label htmlFor="compare-older">Older</label>
+              <select id="compare-older" value={compareB} onChange={(e) => setCompareB(e.target.value)}>
+                {versions.map((v) => (
+                  <option key={v.id} value={v.id}>{v.version_label} ({new Date(v.created_at).toLocaleDateString()})</option>
+                ))}
+              </select>
+            </div>
+            <button
+              type="button"
+              className={`btn btn-primary${loadingDiff ? " is-loading" : ""}`}
+              onClick={runDiff}
+              disabled={loadingDiff}
+            >
+              {loadingDiff ? "Comparing…" : "Compare"}
+            </button>
           </div>
-        </div>
-      )}
-    </div>
-  );
-}
 
-function DiffGroup({ label, items, color }) {
-  if (!items || items.length === 0) return null;
-  return (
-    <div style={{ marginBottom: 12 }}>
-      <div className="detail-label">{label}</div>
-      {items.map((item) => (
-        <span key={item} className={`badge badge-${color}`} style={{ marginRight: 6, marginBottom: 6 }}>
-          <span className="badge-dot" />
-          {item}
-        </span>
-      ))}
-    </div>
+          {diff && (
+            <div className="diff" aria-live="polite">
+              {groups.map(([key, label, kind]) => (
+                <div className="diff-group" key={key}>
+                  <h3>{label} ({diff[key].length})</h3>
+                  <ul className={`diff-list diff-${kind}`}>
+                    {diff[key].map((item) => (
+                      <li key={item}>
+                        <span className="diff-sign" aria-hidden="true">{kind === "added" ? "+" : "−"}</span>
+                        <span>{item}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+              {groups.length === 0 && (
+                <div className="diff-group text-sm text-muted">No structural differences between these versions.</div>
+              )}
+            </div>
+          )}
+        </section>
+      )}
+    </>
   );
 }

@@ -1,50 +1,46 @@
-import { useEffect, useState } from "react";
-import Modal from "./Modal";
-import { api } from "../api/client";
+import { useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
+import Modal from "./Modal";
+import Alert from "./ui/Alert";
+import { ApiError } from "../api/client";
 
+// Account settings. Only wired to endpoints the backend actually exposes:
+// PATCH /api/auth/me updates full_name (not email - there's no endpoint for
+// that), and verification / password reset reuse the same requests the
+// register and forgot-password flows already use.
 export default function ProfileModal({ onClose }) {
-  const { user, refreshUser } = useAuth();
+  const { user, updateProfile, resendVerification, requestPasswordReset } = useAuth();
   const { push } = useToast();
+
   const [fullName, setFullName] = useState(user?.full_name || "");
   const [saving, setSaving] = useState(false);
-  const [history, setHistory] = useState(null);
+  const [error, setError] = useState("");
   const [verifying, setVerifying] = useState(false);
-  const [devToken, setDevToken] = useState(null);
+  const [resetting, setResetting] = useState(false);
 
-  useEffect(() => {
-    api.get("/auth/login-history").then(setHistory).catch(() => setHistory([]));
-  }, []);
+  const dirty = fullName.trim() !== "" && fullName.trim() !== user?.full_name;
 
   async function handleSave(e) {
     e.preventDefault();
+    if (!dirty) return;
+    setError("");
     setSaving(true);
     try {
-      await api.patch("/auth/me", { full_name: fullName });
-      await refreshUser();
+      await updateProfile(fullName.trim());
       push("Profile updated", "success");
     } catch (err) {
-      push(err.message, "error");
+      setError(err.message);
     } finally {
       setSaving(false);
     }
   }
 
-  const [emailSent, setEmailSent] = useState(null);
-
   async function handleResendVerification() {
     setVerifying(true);
     try {
-      const res = await api.post("/auth/resend-verification", {});
-      setEmailSent(res.email_sent);
-      if (res.email_sent) {
-        push("Verification email sent — check your inbox", "success");
-      } else {
-        // No SMTP configured on the backend - fall back to a direct link
-        // instead of a real email.
-        setDevToken(res.verification_token);
-      }
+      const result = await resendVerification();
+      push(result?.email_sent ? "Verification email sent" : "Could not send verification email", result?.email_sent ? "success" : "error");
     } catch (err) {
       push(err.message, "error");
     } finally {
@@ -52,74 +48,83 @@ export default function ProfileModal({ onClose }) {
     }
   }
 
-  async function handleVerifyNow() {
-    if (!devToken) return;
+  async function handlePasswordReset() {
+    setResetting(true);
     try {
-      await api.post("/auth/verify-email", { token: devToken });
-      await refreshUser();
-      push("Email verified", "success");
-      setDevToken(null);
+      const result = await requestPasswordReset(user.email);
+      push(result?.message || "If that email is registered, a reset link was sent", "success");
     } catch (err) {
-      push(err.message, "error");
+      push(err instanceof ApiError ? err.message : "Could not request a password reset", "error");
+    } finally {
+      setResetting(false);
     }
   }
 
   return (
-    <Modal title="Your profile" onClose={onClose} width="440px">
-      <form onSubmit={handleSave}>
+    <Modal
+      title="Profile settings"
+      onClose={onClose}
+      width="440px"
+      footer={
+        <>
+          <button type="button" className="btn" onClick={onClose}>Close</button>
+          <button
+            className={`btn btn-primary${saving ? " is-loading" : ""}`}
+            form="profile-form"
+            type="submit"
+            disabled={saving || !dirty}
+            aria-busy={saving}
+          >
+            {saving ? "Saving…" : "Save changes"}
+          </button>
+        </>
+      }
+    >
+      {error && <Alert>{error}</Alert>}
+      <form id="profile-form" onSubmit={handleSave}>
         <div className="field">
           <label htmlFor="profile-name">Full name</label>
-          <input id="profile-name" value={fullName} onChange={(e) => setFullName(e.target.value)} required />
+          <input
+            id="profile-name"
+            value={fullName}
+            onChange={(e) => setFullName(e.target.value)}
+            maxLength={120}
+            required
+            autoFocus
+          />
         </div>
         <div className="field">
-          <label>Email</label>
-          <input value={user?.email || ""} disabled />
+          <label htmlFor="profile-email">Email</label>
+          <input id="profile-email" value={user?.email || ""} disabled />
+          <div className="field-hint">
+            Email can't be changed from here yet. Contact an administrator if you need it updated.
+          </div>
         </div>
-        <button className="btn btn-primary btn-sm" type="submit" disabled={saving}>
-          {saving ? "Saving…" : "Save changes"}
-        </button>
       </form>
 
-      <div className="detail-section" style={{ padding: "16px 0", marginTop: 16 }}>
-        <div className="detail-label">Verification</div>
-        {user?.is_verified ? (
-          <span className="badge badge-green"><span className="badge-dot" />Verified</span>
-        ) : (
-          <>
-            <span className="badge badge-amber" style={{ marginBottom: 8 }}><span className="badge-dot" />Not verified</span>
-            <div style={{ marginTop: 8 }}>
-              <button className="btn btn-sm" onClick={handleResendVerification} disabled={verifying}>
-                {verifying ? "Sending…" : "Send verification email"}
-              </button>
-              {emailSent === true && (
-                <div className="field-hint" style={{ marginTop: 8 }}>
-                  Sent — open the link in that email to verify. It's valid until you request a new one.
-                </div>
-              )}
-              {devToken && (
-                <div className="field-hint" style={{ marginTop: 8 }}>
-                  This server has no email provider configured (see <code>SMTP_HOST</code> in the backend .env),
-                  so here's a direct link instead of an email:
-                  <div style={{ marginTop: 6 }}>
-                    <button className="btn btn-sm btn-primary" onClick={handleVerifyNow}>Verify now</button>
-                  </div>
-                </div>
-              )}
-            </div>
-          </>
-        )}
+      <div className="profile-status">
+        <div className="profile-status-row">
+          {user?.is_verified ? (
+            <span className="badge badge-green"><span className="badge-dot" aria-hidden="true" />Email verified</span>
+          ) : (
+            <span className="badge badge-amber"><span className="badge-dot" aria-hidden="true" />Email not verified</span>
+          )}
+          {!user?.is_verified && (
+            <button type="button" className="btn btn-sm" onClick={handleResendVerification} disabled={verifying}>
+              {verifying ? "Sending…" : "Resend verification"}
+            </button>
+          )}
+        </div>
       </div>
 
-      <div className="detail-section" style={{ padding: "16px 0" }}>
-        <div className="detail-label">Recent logins</div>
-        {history === null && <div className="loading-row"><span className="spinner" />Loading…</div>}
-        {history && history.length === 0 && <p style={{ fontSize: 12.5, color: "var(--ink-500)" }}>No login history yet.</p>}
-        {history && history.slice(0, 8).map((h) => (
-          <div key={h.id} className="detail-row">
-            <span className="k">{new Date(h.created_at).toLocaleString()}</span>
-            <span className="v">{h.success ? "Success" : "Failed"}</span>
-          </div>
-        ))}
+      <div className="profile-section">
+        <h3>Password</h3>
+        <p className="field-hint" style={{ margin: "0 0 var(--sp-3)" }}>
+          We'll email a reset link to {user?.email}.
+        </p>
+        <button type="button" className="btn btn-sm" onClick={handlePasswordReset} disabled={resetting}>
+          {resetting ? "Sending…" : "Send password reset email"}
+        </button>
       </div>
     </Modal>
   );

@@ -23,6 +23,11 @@ class ApiError extends Error {
   }
 }
 
+// Backend base URL: set VITE_API_BASE_URL in .env for a deployed backend.
+// Falls back to "/api", which relies on a same-origin reverse proxy (the
+// Vite dev server proxy locally, or your web server's config in production).
+const BASE_URL = (import.meta.env.VITE_API_BASE_URL || "/api").replace(/\/$/, "");
+
 async function request(path, { method = "GET", body, auth = true } = {}) {
   const headers = { "Content-Type": "application/json" };
   if (auth) {
@@ -32,7 +37,7 @@ async function request(path, { method = "GET", body, auth = true } = {}) {
 
   let res;
   try {
-    res = await fetch(`/api${path}`, {
+    res = await fetch(`${BASE_URL}${path}`, {
       method,
       headers,
       body: body !== undefined ? JSON.stringify(body) : undefined,

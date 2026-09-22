@@ -1,11 +1,15 @@
 import { useState } from "react";
-import { NavLink, Outlet, useNavigate } from "react-router-dom";
+import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import Menu from "./ui/Menu";
+import Logomark from "./ui/Logomark";
 import ProfileModal from "./ProfileModal";
+import { initials } from "../utils/initials";
 
 export default function AppShell() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const inProjects = useLocation().pathname.startsWith("/projects");
   const [showProfile, setShowProfile] = useState(false);
 
   function handleLogout() {
@@ -16,36 +20,51 @@ export default function AppShell() {
   return (
     <div className="app-shell">
       <aside className="sidebar">
-        <div className="sidebar-brand">
-          API Nexus
-          <small>Dependency &amp; impact mapping</small>
-        </div>
-        <nav className="sidebar-nav">
-          <NavLink to="/" end className={({ isActive }) => (isActive ? "active" : "")}>
+        <NavLink to="/" className="sidebar-brand" aria-label="API Nexus home">
+          <Logomark />
+          <span>
+            <span className="sidebar-brand-name">API Nexus</span>
+            <span className="sidebar-brand-tag">Dependency &amp; impact mapping</span>
+          </span>
+        </NavLink>
+        <nav className="sidebar-nav" aria-label="Main">
+          <NavLink to="/" end className={({ isActive }) => (isActive || inProjects ? "active" : "")}>
             Projects
           </NavLink>
         </nav>
+
+        {/* Desktop: account block at the bottom of the sidebar */}
         <div className="sidebar-footer">
-          <button
-            onClick={() => setShowProfile(true)}
-            style={{ all: "unset", cursor: "pointer", display: "block", width: "100%", marginBottom: 10 }}
-          >
-            <div style={{ fontSize: 13, fontWeight: 500, marginBottom: 2 }}>{user?.full_name}</div>
-            <div style={{ fontSize: 12, color: "var(--ink-500)" }}>{user?.email}</div>
-            {!user?.is_verified && (
-              <span className="badge badge-amber" style={{ marginTop: 6 }}>
-                <span className="badge-dot" />Unverified
-              </span>
-            )}
+          <button type="button" className="sidebar-user" onClick={() => setShowProfile(true)}>
+            <span className="avatar" aria-hidden="true">{initials(user?.full_name)}</span>
+            <span className="sidebar-user-text">
+              <span className="sidebar-user-name truncate">{user?.full_name}</span>
+              <span className="sidebar-user-email truncate" title={user?.email}>{user?.email}</span>
+            </span>
           </button>
-          <button className="btn btn-sm" style={{ width: "100%" }} onClick={handleLogout}>
+          <button type="button" className="btn btn-sm btn-block" onClick={handleLogout}>
             Log out
           </button>
         </div>
+
+        {/* Mobile: the same account block collapses into an avatar menu */}
+        <div className="account-menu">
+          <Menu
+            label={<span className="avatar">{initials(user?.full_name)}</span>}
+            ariaLabel="Account menu"
+            buttonClassName="avatar-btn"
+            chevron={false}
+            items={[
+              { label: "Profile settings", onSelect: () => setShowProfile(true) },
+              { label: "Log out", onSelect: handleLogout },
+            ]}
+          />
+        </div>
       </aside>
-      <div className="main-area">
+      <main className="main-area">
         <Outlet />
-      </div>
+      </main>
+
       {showProfile && <ProfileModal onClose={() => setShowProfile(false)} />}
     </div>
   );

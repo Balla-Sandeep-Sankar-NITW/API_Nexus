@@ -1,5 +1,6 @@
 import { useState } from "react";
 import Modal from "./Modal";
+import Alert from "./ui/Alert";
 import { api } from "../api/client";
 import { useToast } from "../context/ToastContext";
 
@@ -41,14 +42,14 @@ export default function AddNodeModal({ projectId, onClose, onCreated }) {
       onClose={onClose}
       footer={
         <>
-          <button className="btn" onClick={onClose}>Cancel</button>
-          <button className="btn btn-primary" form="add-node-form" type="submit" disabled={saving}>
+          <button type="button" className="btn" onClick={onClose}>Cancel</button>
+          <button className={`btn btn-primary${saving ? " is-loading" : ""}`} form="add-node-form" type="submit" disabled={saving} aria-busy={saving}>
             {saving ? "Adding…" : "Add node"}
           </button>
         </>
       }
     >
-      {error && <div className="auth-error">{error}</div>}
+      {error && <Alert>{error}</Alert>}
       <form id="add-node-form" onSubmit={handleSubmit}>
         <div className="field">
           <label htmlFor="node-label">Name</label>

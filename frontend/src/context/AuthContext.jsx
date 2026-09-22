@@ -28,10 +28,14 @@ export function AuthProvider({ children }) {
   }, []);
 
   const register = useCallback(async (email, fullName, password) => {
-    // Registration deliberately does not create a session: the account
-    // must be verified before its first login. Returns
-    // { message, email_sent, verification_token }.
-    return api.post("/auth/register", { email, full_name: fullName, password }, { auth: false });
+    const data = await api.post(
+      "/auth/register",
+      { email, full_name: fullName, password },
+      { auth: false }
+    );
+    setTokens(data.access_token, data.refresh_token);
+    setUser(data.user);
+    return data.user;
   }, []);
 
   const logout = useCallback(() => {
@@ -39,14 +43,26 @@ export function AuthProvider({ children }) {
     setUser(null);
   }, []);
 
-  const refreshUser = useCallback(async () => {
-    const fresh = await api.get("/auth/me");
-    setUser(fresh);
-    return fresh;
+  // PATCH /api/auth/me only accepts full_name today (see UserUpdate in the
+  // OpenAPI schema) - there is no endpoint to change email from account
+  // settings, so that field is intentionally not editable here.
+  const updateProfile = useCallback(async (fullName) => {
+    const updated = await api.patch("/auth/me", { full_name: fullName });
+    setUser(updated);
+    return updated;
   }, []);
 
+  const resendVerification = useCallback(() => api.post("/auth/resend-verification"), []);
+
+  const requestPasswordReset = useCallback(
+    (email) => api.post("/auth/request-password-reset", { email }, { auth: false }),
+    []
+  );
+
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, logout, refreshUser }}>
+    <AuthContext.Provider
+      value={{ user, loading, login, register, logout, updateProfile, resendVerification, requestPasswordReset }}
+    >
       {children}
     </AuthContext.Provider>
   );

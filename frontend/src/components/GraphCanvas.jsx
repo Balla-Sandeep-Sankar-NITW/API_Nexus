@@ -1,104 +1,169 @@
-import { useEffect, useMemo, useRef, useState, useCallback, forwardRef, useImperativeHandle } from "react";
-import { computeForceLayout } from "../utils/layout";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { NODE_H, NODE_W } from "../utils/layout";
+import Icon from "./ui/Icon";
 
 const TYPE_COLOR = {
-  api: "#3b82f6",
-  schema: "#a855f7",
-  auth: "#f59e0b",
-  service: "#10b981",
-  database: "#06b6d4",
-  external: "#64748b",
-  custom: "#8b5cf6",
+  api: "var(--type-api)",
+  schema: "var(--type-schema)",
+  auth: "var(--type-auth)",
+  service: "var(--type-service)",
+  database: "var(--type-database)",
+  external: "var(--type-external)",
+  custom: "var(--type-custom)",
 };
 
-const METHOD_STYLES = {
-  GET: { bg: "rgba(16, 185, 129, 0.25)", text: "#34d399", border: "rgba(16, 185, 129, 0.5)" },
-  POST: { bg: "rgba(59, 130, 246, 0.25)", text: "#60a5fa", border: "rgba(59, 130, 246, 0.5)" },
-  PUT: { bg: "rgba(245, 158, 11, 0.25)", text: "#fbbf24", border: "rgba(245, 158, 11, 0.5)" },
-  PATCH: { bg: "rgba(245, 158, 11, 0.25)", text: "#fbbf24", border: "rgba(245, 158, 11, 0.5)" },
-  DELETE: { bg: "rgba(239, 68, 68, 0.25)", text: "#f87171", border: "rgba(239, 68, 68, 0.5)" },
-  DEFAULT: { bg: "rgba(168, 85, 247, 0.25)", text: "#c084fc", border: "rgba(168, 85, 247, 0.5)" },
-};
+const MIN_K = 0.1;
+const MAX_K = 2.5;
+const clampK = (k) => Math.min(MAX_K, Math.max(MIN_K, k));
 
-const FREEZE_STROKE = {
-  frozen: "#ef4444",
-  impacted: "#f59e0b",
-  selected: "#818cf8",
-  active: "#334155",
-};
+// Line between two node boxes, clipped to their borders so the arrowhead
+// is visible instead of hiding underneath the target node.
+function edgeEnds(a, b) {
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
+  if (dx === 0 && dy === 0) return null;
+  const tx = dx ? NODE_W / 2 / Math.abs(dx) : Infinity;
+  const ty = dy ? NODE_H / 2 / Math.abs(dy) : Infinity;
+  const t = Math.min(tx, ty);
+  if (t >= 0.5) return null; // boxes touch or overlap: nothing sensible to draw
+  const pad = 3 / Math.hypot(dx, dy);
+  return {
+    x1: a.x + dx * t,
+    y1: a.y + dy * t,
+    x2: b.x - dx * (t + pad),
+    y2: b.y - dy * (t + pad),
+  };
+}
 
-const NODE_W = 200;
-const NODE_H = 54;
-
-const GraphCanvas = forwardRef(function GraphCanvas({
-  nodes,
+export default function GraphCanvas({
+  nodes, // nodes to draw (already filtered)
+  allNodes, // every node in the project, used to seed positions
   edges,
   selectedId,
   onSelect,
   onPositionCommit,
-  highlightedIds,
-  animateChain,
-  onNodeContextMenu,
-}, ref) {
+  highlightedIds, // Set of node ids kept at full emphasis when non-empty (impact / focus)
+  animateChain, // array of node ids forming a dependency chain to emphasise
+  layoutVersion = 0, // bump to re-read positions from allNodes and refit
+  onArrange, // optional: shows an "Arrange" control
+  filtersActive,
+  onClearFilters,
+}) {
   const containerRef = useRef(null);
-  const svgRef = useRef(null);
-  const [size, setSize] = useState({ width: 1000, height: 700 });
+  const didFit = useRef(false);
+  const [size, setSize] = useState({ width: 0, height: 0 });
   const [positions, setPositions] = useState({});
-  const [transform, setTransform] = useState({ x: 0, y: 0, k: 0.8 });
-  const [dragging, setDragging] = useState(null);
-  const [panning, setPanning] = useState(null);
-  const [pulseTick, setPulseTick] = useState(0);
-  const layoutCalculated = useRef(false);
-
-  const handleAutoLayout = useCallback(() => {
-    if (!nodes || nodes.length === 0) return;
-    const computed = computeForceLayout(nodes, edges, { width: size.width || 1200, height: size.height || 800 });
-    setPositions(computed);
-    if (onPositionCommit) {
-      Object.entries(computed).forEach(([id, pos]) => {
-        onPositionCommit(id, Math.round(pos.x), Math.round(pos.y));
-      });
-    }
-  }, [nodes, edges, size, onPositionCommit]);
-
-  useImperativeHandle(ref, () => ({
-    getSvgElement: () => svgRef.current,
-    relayout: handleAutoLayout,
-  }));
+  const [transform, setTransform] = useState({ x: 0, y: 0, k: 1 });
+  const [dragging, setDragging] = useState(null); // {id, offsetX, offsetY, moved}
+  const [panning, setPanning] = useState(null); // {startX, startY, startTx, startTy, moved}
+  const pointers = useRef(new Map()); // active pointers, for two-finger pinch
+  const pinch = useRef(null);
 
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
     const observer = new ResizeObserver((entries) => {
       const { width, height } = entries[0].contentRect;
-      if (width > 0 && height > 0) {
-        setSize({ width, height });
-      }
+      setSize({ width, height });
     });
     observer.observe(el);
     return () => observer.disconnect();
   }, []);
 
-  // Force-calculate layout on initial node load if nodes are overlapping/clumped
+  // Seed the position map from stored pos_x/pos_y the first time we see a node.
+  // Deliberately does NOT re-run when filters change, so an in-progress or
+  // already-committed drag is never reset by a search/filter change.
   useEffect(() => {
-    if (!nodes || nodes.length === 0) return;
+    setPositions((prev) => {
+      let changed = false;
+      const next = { ...prev };
+      for (const n of allNodes) {
+        if (!next[n.id]) {
+          next[n.id] = { x: n.pos_x || 0, y: n.pos_y || 0 };
+          changed = true;
+        }
+      }
+      return changed ? next : prev;
+    });
+  }, [allNodes]);
 
-    // Run auto-layout automatically if it hasn't run yet or if positions are near zero
-    if (!layoutCalculated.current) {
-      const computed = computeForceLayout(nodes, edges, { width: size.width || 1200, height: size.height || 800 });
-      setPositions(computed);
-      layoutCalculated.current = true;
+  // Pure: the transform that frames a set of node centers inside the canvas.
+  // `readable`: on very narrow canvases, don't shrink below a legible zoom;
+  // frame the top-left of the graph instead and let the user pan.
+  const computeFit = useCallback((pts, sz, readable = false) => {
+    if (pts.length === 0 || sz.width === 0 || sz.height === 0) return null;
+    const minX = Math.min(...pts.map((p) => p.x)) - NODE_W / 2;
+    const maxX = Math.max(...pts.map((p) => p.x)) + NODE_W / 2;
+    const minY = Math.min(...pts.map((p) => p.y)) - NODE_H / 2;
+    const maxY = Math.max(...pts.map((p) => p.y)) + NODE_H / 2;
+    const pad = 56;
+    const w = maxX - minX;
+    const h = maxY - minY;
+    const k = clampK(Math.min((sz.width - pad * 2) / w, (sz.height - pad * 2) / h, 1));
+    const floor = 0.34;
+    if (readable && sz.width < 600 && k < floor) {
+      return { k: floor, x: 16 - minX * floor, y: 64 - minY * floor };
     }
-  }, [nodes, edges, size]);
+    return { k, x: (sz.width - w * k) / 2 - minX * k, y: (sz.height - h * k) / 2 - minY * k };
+  }, []);
 
+  const fitView = useCallback((readable = false) => {
+    const t = computeFit(nodes.map((n) => positions[n.id]).filter(Boolean), size, readable === true);
+    if (t) setTransform(t);
+    return !!t;
+  }, [nodes, positions, size, computeFit]);
+
+  // Re-read every position (after an auto-arrange / first layout) and refit.
+  // The fit is computed from the fresh positions directly, not from state,
+  // because state has not updated yet when this effect runs.
   useEffect(() => {
-    if (!animateChain || animateChain.length === 0) return;
-    const interval = setInterval(() => setPulseTick((t) => t + 1), 900);
-    return () => clearInterval(interval);
-  }, [animateChain]);
+    if (layoutVersion === 0) return;
+    const fresh = Object.fromEntries(allNodes.map((n) => [n.id, { x: n.pos_x || 0, y: n.pos_y || 0 }]));
+    setPositions(fresh);
+    const t = computeFit(nodes.map((n) => fresh[n.id]).filter(Boolean), size, true);
+    if (t) setTransform(t);
+    didFit.current = !!t;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [layoutVersion]);
+
+  // Fit once when the graph first has everything it needs.
+  useEffect(() => {
+    if (didFit.current) return;
+    if (nodes.length === 0 || !nodes.every((n) => positions[n.id])) return;
+    if (fitView(true)) didFit.current = true;
+  }, [nodes, positions, fitView]);
+
+  // Wheel zoom anchored at the cursor. Attached natively because React's
+  // onWheel is passive and cannot preventDefault (the page would scroll).
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    function onWheel(e) {
+      e.preventDefault();
+      const rect = el.getBoundingClientRect();
+      const mx = e.clientX - rect.left;
+      const my = e.clientY - rect.top;
+      setTransform((t) => {
+        const k = clampK(t.k * Math.exp(-e.deltaY * 0.0015));
+        const r = k / t.k;
+        return { k, x: mx - (mx - t.x) * r, y: my - (my - t.y) * r };
+      });
+    }
+    el.addEventListener("wheel", onWheel, { passive: false });
+    return () => el.removeEventListener("wheel", onWheel);
+  }, []);
+
+  function zoomBy(factor) {
+    setTransform((t) => {
+      const k = clampK(t.k * factor);
+      const r = k / t.k;
+      const cx = size.width / 2;
+      const cy = size.height / 2;
+      return { k, x: cx - (cx - t.x) * r, y: cy - (cy - t.y) * r };
+    });
+  }
 
   function screenToWorld(clientX, clientY) {
-    if (!containerRef.current) return { x: 0, y: 0 };
     const rect = containerRef.current.getBoundingClientRect();
     return {
       x: (clientX - rect.left - transform.x) / transform.k,
@@ -106,65 +171,97 @@ const GraphCanvas = forwardRef(function GraphCanvas({
     };
   }
 
-  const handleNodeMouseDown = useCallback(
-    (e, node) => {
-      e.stopPropagation();
-      const world = screenToWorld(e.clientX, e.clientY);
-      const pos = positions[node.id] || { x: 0, y: 0 };
-      setDragging({ id: node.id, offsetX: world.x - pos.x, offsetY: world.y - pos.y, moved: false });
-      onSelect(node.id);
-    },
-    [positions, transform, onSelect]
-  );
+  function trackPointerDown(e) {
+    pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (pointers.current.size === 2) {
+      const [a, b] = [...pointers.current.values()];
+      pinch.current = {
+        dist: Math.hypot(a.x - b.x, a.y - b.y) || 1,
+        k: transform.k,
+        tx: transform.x,
+        ty: transform.y,
+        cx: (a.x + b.x) / 2,
+        cy: (a.y + b.y) / 2,
+      };
+      setDragging(null);
+      setPanning(null);
+    }
+  }
 
-  function handleMouseMove(e) {
+  function handleNodePointerDown(e, node) {
+    if (e.button !== 0) return;
+    e.stopPropagation();
+    containerRef.current.setPointerCapture(e.pointerId);
+    trackPointerDown(e);
+    if (pinch.current) return;
+    const world = screenToWorld(e.clientX, e.clientY);
+    const pos = positions[node.id] || { x: 0, y: 0 };
+    setDragging({ id: node.id, offsetX: world.x - pos.x, offsetY: world.y - pos.y, moved: false });
+    onSelect(node.id);
+  }
+
+  function handleBackgroundPointerDown(e) {
+    if (e.button !== 0) return;
+    containerRef.current.setPointerCapture(e.pointerId);
+    trackPointerDown(e);
+    if (pinch.current) return;
+    setPanning({ startX: e.clientX, startY: e.clientY, startTx: transform.x, startTy: transform.y, moved: false });
+  }
+
+  function handlePointerMove(e) {
+    if (pointers.current.has(e.pointerId)) pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (pinch.current && pointers.current.size >= 2) {
+      const [a, b] = [...pointers.current.values()];
+      const p = pinch.current;
+      const k = clampK(p.k * (Math.hypot(a.x - b.x, a.y - b.y) / p.dist));
+      const rect = containerRef.current.getBoundingClientRect();
+      // Keep the world point that started under the fingers' midpoint under them.
+      const wx = (p.cx - rect.left - p.tx) / p.k;
+      const wy = (p.cy - rect.top - p.ty) / p.k;
+      const nx = (a.x + b.x) / 2 - rect.left;
+      const ny = (a.y + b.y) / 2 - rect.top;
+      setTransform({ k, x: nx - wx * k, y: ny - wy * k });
+      return;
+    }
     if (dragging) {
       const world = screenToWorld(e.clientX, e.clientY);
       setPositions((prev) => ({
         ...prev,
         [dragging.id]: { x: world.x - dragging.offsetX, y: world.y - dragging.offsetY },
       }));
-      setDragging((d) => ({ ...d, moved: true }));
+      if (!dragging.moved) setDragging((d) => ({ ...d, moved: true }));
     } else if (panning) {
-      setTransform((t) => ({
-        ...t,
-        x: panning.startTx + (e.clientX - panning.startX),
-        y: panning.startTy + (e.clientY - panning.startY),
-      }));
+      const dx = e.clientX - panning.startX;
+      const dy = e.clientY - panning.startY;
+      setTransform((t) => ({ ...t, x: panning.startTx + dx, y: panning.startTy + dy }));
+      if (!panning.moved && Math.hypot(dx, dy) > 3) setPanning((p) => ({ ...p, moved: true }));
     }
   }
 
-  function handleMouseUp() {
+  function handlePointerUp(e) {
+    pointers.current.delete(e.pointerId);
+    if (pinch.current) {
+      if (pointers.current.size < 2) pinch.current = null;
+      setDragging(null);
+      setPanning(null);
+      return;
+    }
     if (dragging && dragging.moved && onPositionCommit) {
       const pos = positions[dragging.id];
-      if (pos) {
-        onPositionCommit(dragging.id, Math.round(pos.x), Math.round(pos.y));
-      }
+      onPositionCommit(dragging.id, Math.round(pos.x), Math.round(pos.y));
     }
+    // A click on empty canvas (not a pan) clears the selection.
+    if (panning && !panning.moved) onSelect(null);
     setDragging(null);
     setPanning(null);
   }
 
-  function handleBackgroundMouseDown(e) {
-    setPanning({ startX: e.clientX, startY: e.clientY, startTx: transform.x, startTy: transform.y });
-    onSelect(null);
-  }
-
-  function handleWheel(e) {
-    e.preventDefault();
-    const delta = -e.deltaY * 0.001;
-    setTransform((t) => {
-      const newK = Math.min(2.5, Math.max(0.15, t.k + delta));
-      return { ...t, k: newK };
-    });
-  }
-
-  function zoomBy(factor) {
-    setTransform((t) => ({ ...t, k: Math.min(2.5, Math.max(0.15, t.k * factor)) }));
-  }
-
-  function resetView() {
-    setTransform({ x: 0, y: 0, k: 0.8 });
+  function handleKeyDown(e) {
+    if (e.target instanceof HTMLElement && e.target.closest("input, textarea, select")) return;
+    if (e.key === "Escape") onSelect(null);
+    else if (e.key === "+" || e.key === "=") zoomBy(1.2);
+    else if (e.key === "-") zoomBy(1 / 1.2);
+    else if (e.key === "0") fitView();
   }
 
   const connectedIds = useMemo(() => {
@@ -177,189 +274,153 @@ const GraphCanvas = forwardRef(function GraphCanvas({
     return s;
   }, [selectedId, edges]);
 
+  const chainKeys = useMemo(() => {
+    const s = new Set();
+    if (animateChain && animateChain.length > 1) {
+      for (let i = 0; i < animateChain.length - 1; i++) {
+        s.add(`${animateChain[i]}>${animateChain[i + 1]}`);
+        s.add(`${animateChain[i + 1]}>${animateChain[i]}`);
+      }
+    }
+    return s;
+  }, [animateChain]);
+
+  const hasHighlight = highlightedIds && highlightedIds.size > 0;
   const dim = (id) => {
-    if (highlightedIds && highlightedIds.size > 0) return !highlightedIds.has(id);
+    if (hasHighlight) return !highlightedIds.has(id);
     if (connectedIds) return !connectedIds.has(id);
     return false;
   };
 
-  // Ensure active/selected nodes render on top of unselected nodes
-  const sortedNodes = useMemo(() => {
-    return [...nodes].sort((a, b) => {
-      if (a.id === selectedId || a.id === dragging?.id) return 1;
-      if (b.id === selectedId || b.id === dragging?.id) return -1;
-      return 0;
-    });
-  }, [nodes, selectedId, dragging]);
+  // Edges: quiet by default, incident edges of the selection are emphasised
+  // and drawn last so they sit on top.
+  const drawnEdges = useMemo(() => {
+    const list = [];
+    for (const e of edges) {
+      const a = positions[e.source_node_id];
+      const b = positions[e.target_node_id];
+      if (!a || !b) continue;
+      const ends = edgeEnds(a, b);
+      if (!ends) continue;
+      const isChain = chainKeys.has(`${e.source_node_id}>${e.target_node_id}`);
+      const isActive = !isChain && !!selectedId && (e.source_node_id === selectedId || e.target_node_id === selectedId);
+      const faded = (hasHighlight
+        ? !(highlightedIds.has(e.source_node_id) && highlightedIds.has(e.target_node_id))
+        : !!connectedIds && !isActive) && !isChain;
+      list.push({ id: e.id, ends, isChain, isActive, faded });
+    }
+    return list.sort((x, y) => Number(x.isActive || x.isChain) - Number(y.isActive || y.isChain));
+  }, [edges, positions, chainKeys, selectedId, connectedIds, hasHighlight, highlightedIds]);
 
   return (
     <div
-      className="graph-canvas-wrap"
+      className={`graph-canvas-wrap${panning ? " is-panning" : ""}`}
       ref={containerRef}
-      onMouseMove={handleMouseMove}
-      onMouseUp={handleMouseUp}
-      onMouseLeave={handleMouseUp}
-      onMouseDown={handleBackgroundMouseDown}
-      onWheel={handleWheel}
+      role="group"
+      aria-label="Dependency graph. Tab moves between nodes, Enter selects, plus and minus zoom, zero fits to screen, Escape clears the selection."
+      onPointerMove={handlePointerMove}
+      onPointerUp={handlePointerUp}
+      onPointerCancel={handlePointerUp}
+      onPointerDown={handleBackgroundPointerDown}
+      onKeyDown={handleKeyDown}
       style={{
-        cursor: panning ? "grabbing" : "grab",
-        background: "#0d1117",
-        width: "100%",
-        height: "100%",
-        position: "relative",
-        overflow: "hidden",
+        backgroundSize: `${24 * transform.k}px ${24 * transform.k}px`,
+        backgroundPosition: `${transform.x}px ${transform.y}px`,
+        backgroundImage: transform.k < 0.4 ? "none" : undefined,
       }}
     >
-      <div className="graph-toolbar" onMouseDown={(e) => e.stopPropagation()}>
-        <button className="btn btn-sm" onClick={() => zoomBy(1.2)} title="Zoom in">+</button>
-        <button className="btn btn-sm" onClick={() => zoomBy(0.8)} title="Zoom out">−</button>
-        <button className="btn btn-sm" onClick={resetView} title="Reset view">Reset</button>
-        <button className="btn btn-sm btn-accent" onClick={handleAutoLayout} title="Auto arrange all nodes">Auto Layout</button>
+      <div className="graph-controls" onPointerDown={(e) => e.stopPropagation()}>
+        <button type="button" className="btn btn-icon tip" data-tip="Zoom out" aria-label="Zoom out" onClick={() => zoomBy(1 / 1.2)}>
+          <Icon name="minus" />
+        </button>
+        <span className="zoom-level" aria-live="off">{Math.round(transform.k * 100)}%</span>
+        <button type="button" className="btn btn-icon tip" data-tip="Zoom in" aria-label="Zoom in" onClick={() => zoomBy(1.2)}>
+          <Icon name="plus" />
+        </button>
+        <button type="button" className="btn btn-icon tip" data-tip="Fit to screen" aria-label="Fit graph to screen" onClick={() => fitView()}>
+          <Icon name="fit" />
+        </button>
+        {onArrange && (
+          <>
+            <span className="divider" aria-hidden="true" />
+            <button type="button" className="btn btn-icon tip" data-tip="Auto-arrange" aria-label="Auto-arrange nodes" onClick={onArrange}>
+              <Icon name="arrange" />
+            </button>
+          </>
+        )}
       </div>
 
-      <svg width="100%" height="100%" ref={svgRef}>
+      <svg className="graph-svg" role="presentation">
         <defs>
-          <marker
-            id="arrow"
-            viewBox="0 0 10 10"
-            refX="8"
-            refY="5"
-            markerWidth="6"
-            markerHeight="6"
-            orient="auto-start-reverse"
-          >
-            <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#475569" />
-          </marker>
+          {[
+            ["arrow", ""],
+            ["arrow-active", "is-active"],
+            ["arrow-chain", "is-chain"],
+          ].map(([id, cls]) => (
+            <marker key={id} id={id} viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" markerUnits="userSpaceOnUse" orient="auto">
+              <path className={`ga ${cls}`} d="M 0 1 L 10 5 L 0 9 z" />
+            </marker>
+          ))}
         </defs>
-
         <g transform={`translate(${transform.x},${transform.y}) scale(${transform.k})`}>
-          {/* Edges */}
-          {edges.map((e) => {
-            const a = positions[e.source_node_id];
-            const b = positions[e.target_node_id];
-            if (!a || !b) return null;
-            const faded = dim(e.source_node_id) || dim(e.target_node_id);
-            const isChainEdge =
-              animateChain &&
-              animateChain.length > 1 &&
-              animateChain.some(
-                (id, i) =>
-                  i < animateChain.length - 1 &&
-                  ((animateChain[i] === e.source_node_id && animateChain[i + 1] === e.target_node_id) ||
-                    (animateChain[i] === e.target_node_id && animateChain[i + 1] === e.source_node_id))
-              );
+          {drawnEdges.map((e) => (
+            <line
+              key={e.id}
+              className={`ge${e.isActive ? " is-active" : ""}${e.isChain ? " is-chain" : ""}`}
+              x1={e.ends.x1}
+              y1={e.ends.y1}
+              x2={e.ends.x2}
+              y2={e.ends.y2}
+              opacity={e.faded ? 0.1 : 1}
+              markerEnd={`url(#${e.isChain ? "arrow-chain" : e.isActive ? "arrow-active" : "arrow"})`}
+            />
+          ))}
 
-            return (
-              <g key={e.id} opacity={faded ? 0.35 : 1}>
-                <line
-                  x1={a.x}
-                  y1={a.y}
-                  x2={b.x}
-                  y2={b.y}
-                  stroke={isChainEdge ? "#ef4444" : "#334155"}
-                  strokeWidth={isChainEdge ? 2.5 : 1.5}
-                  strokeDasharray={isChainEdge ? "6 4" : undefined}
-                  style={
-                    isChainEdge
-                      ? { strokeDashoffset: -pulseTick * 4, transition: "stroke-dashoffset 0.4s linear" }
-                      : undefined
-                  }
-                  markerEnd="url(#arrow)"
-                />
-              </g>
-            );
-          })}
-
-          {/* Nodes */}
-          {sortedNodes.map((node) => {
+          {nodes.map((node) => {
             const pos = positions[node.id];
             if (!pos) return null;
-
             const isSelected = node.id === selectedId;
-            const faded = dim(node.id);
-
-            const methodKey = (node.method || "").toUpperCase();
-            const methodStyle = METHOD_STYLES[methodKey] || METHOD_STYLES.DEFAULT;
-            const typeColor = TYPE_COLOR[node.node_type] || "#64748b";
-
-            let strokeColor = FREEZE_STROKE.active;
-            if (node.freeze_status === "frozen") strokeColor = FREEZE_STROKE.frozen;
-            else if (node.freeze_status === "impacted") strokeColor = FREEZE_STROKE.impacted;
-            else if (isSelected) strokeColor = FREEZE_STROKE.selected;
-
-            const strokeWidth = isSelected ? 2.5 : node.freeze_status !== "active" ? 2 : 1;
-            const methodText = node.method ? node.method.toUpperCase() : node.node_type.toUpperCase();
-
+            const frozen = node.freeze_status === "frozen";
+            const impacted = node.freeze_status === "impacted";
+            const isEndpoint = !!node.method;
+            const text = node.path || node.label || "";
+            const kicker = node.method || node.node_type;
+            const state = frozen ? "Frozen" : impacted ? "Impacted" : null;
+            const cls = ["gn", isSelected && "is-selected", frozen && "is-frozen", impacted && "is-impacted"]
+              .filter(Boolean)
+              .join(" ");
             return (
               <g
                 key={node.id}
+                className={cls}
                 transform={`translate(${pos.x - NODE_W / 2},${pos.y - NODE_H / 2})`}
-                onMouseDown={(e) => handleNodeMouseDown(e, node)}
-                onContextMenu={(e) => {
-                  if (onNodeContextMenu) {
+                opacity={dim(node.id) ? 0.3 : 1}
+                tabIndex={0}
+                role="button"
+                aria-pressed={isSelected}
+                aria-label={`${kicker} ${text}${state ? `, ${state}` : ""}`}
+                onPointerDown={(e) => handleNodePointerDown(e, node)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
                     e.preventDefault();
                     onSelect(node.id);
-                    onNodeContextMenu(e, node);
                   }
                 }}
-                style={{ cursor: "pointer" }}
-                opacity={faded ? 0.7 : 1}
               >
-                {/* Card Background */}
-                <rect
-                  width={NODE_W}
-                  height={NODE_H}
-                  rx={8}
-                  fill={isSelected ? "#26334d" : "#1e293b"}
-                  stroke={strokeColor}
-                  strokeWidth={strokeWidth}
-                />
-
-                {/* Left Type Accent Bar */}
-                <rect width={5} height={NODE_H} rx={2} fill={typeColor} />
-
-                {/* Method / Type Pill */}
-                <g transform="translate(14, 8)">
-                  <rect
-                    width={methodText.length * 6.8 + 10}
-                    height={16}
-                    rx={4}
-                    fill={methodStyle.bg}
-                    stroke={methodStyle.border}
-                    strokeWidth="0.8"
-                  />
-                  <text
-                    x={5}
-                    y={12}
-                    fontSize="9.5"
-                    fontFamily="Inter, system-ui, sans-serif"
-                    fontWeight="700"
-                    fill={methodStyle.text}
-                    style={{ pointerEvents: "none" }}
-                  >
-                    {methodText}
-                  </text>
-                </g>
-
-                {/* Endpoint Path / Label */}
-                <text
-                  x={14}
-                  y={40}
-                  fontSize="12.5"
-                  fontFamily="Inter, system-ui, sans-serif"
-                  fontWeight="600"
-                  fill="#ffffff"
-                  style={{ pointerEvents: "none" }}
-                >
-                  {truncate(node.path || node.label, 22)}
+                <title>{`${kicker} ${text}${state ? ` (${state})` : ""}`}</title>
+                <rect className="gn-focus" x={-3} y={-3} width={NODE_W + 6} height={NODE_H + 6} rx={6} />
+                <rect className="gn-box" width={NODE_W} height={NODE_H} rx={4} />
+                <rect width={4} height={NODE_H} rx={1.5} fill={TYPE_COLOR[node.node_type] || TYPE_COLOR.custom} />
+                <text className={`gn-kicker${node.method ? ` method-${node.method}` : ""}`} x={14} y={17}>
+                  {kicker}
                 </text>
-
-                {/* Freeze / Impact Indicator Dot */}
-                {node.freeze_status === "frozen" && (
-                  <circle cx={NODE_W - 12} cy={12} r={4} fill="#ef4444" />
-                )}
-                {node.freeze_status === "impacted" && (
-                  <circle cx={NODE_W - 12} cy={12} r={4} fill="#f59e0b" />
+                <text className={`gn-title${isEndpoint ? " is-mono" : ""}`} x={14} y={34}>
+                  {truncate(text, isEndpoint ? 22 : 25)}
+                </text>
+                {state && (
+                  <text className={`gn-state ${state.toLowerCase()}`} x={NODE_W - 8} y={17}>
+                    {state}
+                  </text>
                 )}
               </g>
             );
@@ -367,26 +428,30 @@ const GraphCanvas = forwardRef(function GraphCanvas({
         </g>
       </svg>
 
-      {/* Graph Legend */}
-      <div className="graph-legend">
-        <div className="graph-legend-row">
-          <span className="badge-dot" style={{ background: "#334155" }} /> Active
+      {nodes.length === 0 && (
+        <div className="graph-empty">
+          <span>No nodes match the current filters.</span>
+          {filtersActive && onClearFilters && (
+            <button type="button" className="btn btn-sm" onClick={onClearFilters}>Clear filters</button>
+          )}
         </div>
-        <div className="graph-legend-row">
-          <span className="badge-dot" style={{ background: "#f59e0b" }} /> Impacted
-        </div>
-        <div className="graph-legend-row">
-          <span className="badge-dot" style={{ background: "#ef4444" }} /> Frozen
-        </div>
-        <div className="graph-legend-row">
-          <span className="badge-dot" style={{ background: "#818cf8" }} /> Selected
-        </div>
+      )}
+
+      <div className="graph-footer" onPointerDown={(e) => e.stopPropagation()}>
+        <details className="graph-legend">
+          <summary>Legend</summary>
+          <div className="legend-row"><span className="legend-key selected" />Selected</div>
+          <div className="legend-row"><span className="legend-key impacted" />Impacted by a freeze</div>
+          <div className="legend-row"><span className="legend-key frozen" />Frozen</div>
+          <div className="legend-row text-muted">Arrows point to the dependency.</div>
+        </details>
+        <span className="graph-count">
+          {nodes.length} {nodes.length === 1 ? "node" : "nodes"}, {edges.length} {edges.length === 1 ? "link" : "links"}
+        </span>
       </div>
     </div>
   );
-});
-
-export default GraphCanvas;
+}
 
 function truncate(str, n) {
   if (!str) return "";

@@ -4,17 +4,14 @@ import { ToastProvider } from "./context/ToastContext";
 import AppShell from "./components/AppShell";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
-import ForgotPassword from "./pages/ForgotPassword";
-import ResetPassword from "./pages/ResetPassword";
-import PublicShare from "./pages/PublicShare";
-import VerifyEmail from "./pages/VerifyEmail";
 import Dashboard from "./pages/Dashboard";
 import ProjectGraph from "./pages/ProjectGraph";
+import LoadingRow from "./components/ui/LoadingRow";
 
 function RequireAuth({ children }) {
   const { user, loading } = useAuth();
   if (loading) {
-    return <div className="loading-row"><span className="spinner" />Loading…</div>;
+    return <LoadingRow />;
   }
   if (!user) return <Navigate to="/login" replace />;
   return children;
@@ -46,17 +43,6 @@ function AppRoutes() {
           </RedirectIfAuthed>
         }
       />
-      <Route
-        path="/forgot-password"
-        element={
-          <RedirectIfAuthed>
-            <ForgotPassword />
-          </RedirectIfAuthed>
-        }
-      />
-      <Route path="/reset-password" element={<ResetPassword />} />
-      <Route path="/verify-email" element={<VerifyEmail />} />
-      <Route path="/share/:shareToken" element={<PublicShare />} />
       <Route
         path="/"
         element={

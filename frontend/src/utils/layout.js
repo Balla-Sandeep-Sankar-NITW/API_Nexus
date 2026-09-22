@@ -1,121 +1,172 @@
-/**
- * Compact Force-Directed Layout Generator
- */
+// Layered (left-to-right) graph layout.
+//
+// Edges point from a node to the thing it depends on (source depends on
+// target), so nodes nothing depends on land in the first column and their
+// dependencies flow to the right. Tall layers wrap into several balanced
+// columns, and ordering is refined with a few barycenter sweeps so nodes that
+// share dependencies end up next to each other.
+//
+// The result is deterministic and, by construction, has no overlapping nodes.
+// Returned positions are node centers: { [id]: { x, y } }.
 
-const CARD_WIDTH = 205;
-const CARD_HEIGHT = 60;
+export const NODE_W = 184;
+export const NODE_H = 44;
 
-export function computeForceLayout(nodes, edges, { width = 1000, height = 700, iterations = 260 } = {}) {
-  if (!nodes || nodes.length === 0) return {};
+const TYPE_RANK = { api: 0, auth: 1, service: 2, database: 3, external: 4, schema: 5, custom: 6 };
 
-  const count = nodes.length;
-  const positions = {};
+export function computeLayeredLayout(nodes, edges, opts = {}) {
+  if (nodes.length === 0) return {};
 
-  // 1. Grid-based Initial Spawn (compact aspect ratio)
-  const cols = Math.ceil(Math.sqrt(count * 1.3));
-  const spacingX = 210;
-  const spacingY = 90;
-  const startX = (width - cols * spacingX) / 2 + spacingX / 2;
-  const startY = (height - (count / cols) * spacingY) / 2 + spacingY / 2;
+  const gapY = opts.gapY ?? 14;
+  const gapCol = opts.gapCol ?? 28; // between wrapped columns of one layer
+  const gapLayer = opts.gapLayer ?? 72; // between layers
+  const margin = opts.margin ?? 80;
+  const targetAspect = opts.targetAspect ?? 1.5; // width / height of the finished layout
 
-  nodes.forEach((n, i) => {
-    const col = i % cols;
-    const row = Math.floor(i / cols);
-    positions[n.id] = {
-      x: startX + col * spacingX + (Math.random() - 0.5) * 15,
-      y: startY + row * spacingY + (Math.random() - 0.5) * 15,
-    };
+  const ids = new Set(nodes.map((n) => n.id));
+  const byId = Object.fromEntries(nodes.map((n) => [n.id, n]));
+  const out = {}; // id -> targets (dependencies)
+  const inc = {}; // id -> sources (dependents)
+  nodes.forEach((n) => {
+    out[n.id] = [];
+    inc[n.id] = [];
+  });
+  const seen = new Set();
+  edges.forEach((e) => {
+    const { source_node_id: s, target_node_id: t } = e;
+    if (s === t || !ids.has(s) || !ids.has(t)) return;
+    const key = `${s}>${t}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    out[s].push(t);
+    inc[t].push(s);
   });
 
-  const nodeIds = nodes.map((n) => n.id);
-
-  // Tuned parameters for compact grouping
-  const repulsionStrength = 85000;  // Reduced to stop pushing nodes far apart
-  const springLength = 170;          // Tightened from 320 to 170
-  const springStrength = 0.035;
-  const centerStrength = 0.015;      // Stronger centering pull
-
-  let temperature = 1.0;
-  const coolingRate = 1 / iterations;
-
-  for (let iter = 0; iter < iterations; iter++) {
-    const forces = {};
-    nodeIds.forEach((id) => (forces[id] = { x: 0, y: 0 }));
-
-    // 2. Repulsion & Collision Prevention
-    for (let i = 0; i < nodeIds.length; i++) {
-      for (let j = i + 1; j < nodeIds.length; j++) {
-        const a = nodeIds[i];
-        const b = nodeIds[j];
-
-        const dx = positions[a].x - positions[b].x;
-        const dy = positions[a].y - positions[b].y;
-
-        // Mild horizontal scaling (1.2 instead of 2.2) to prevent wide blowout
-        const scaledDx = dx / 1.25;
-        const distSq = Math.max(scaledDx * scaledDx + dy * dy, 100);
-        const dist = Math.sqrt(distSq);
-
-        let force = repulsionStrength / distSq;
-
-        // Active overlap prevention
-        const absX = Math.abs(dx);
-        const absY = Math.abs(dy);
-        if (absX < CARD_WIDTH && absY < CARD_HEIGHT) {
-          const overlapX = CARD_WIDTH - absX;
-          const overlapY = CARD_HEIGHT - absY;
-          force += (overlapX + overlapY) * 10;
-        }
-
-        const fx = (dx / (dist || 1)) * force;
-        const fy = (dy / (dist || 1)) * force;
-
-        forces[a].x += fx;
-        forces[a].y += fy;
-        forces[b].x -= fx;
-        forces[b].y -= fy;
+  // 1. Layer = longest path from a root (Kahn's algorithm; nodes caught in a
+  //    cycle are placed one layer past their deepest resolved dependent).
+  const layer = {};
+  const indeg = {};
+  nodes.forEach((n) => (indeg[n.id] = inc[n.id].length));
+  let queue = nodes.filter((n) => indeg[n.id] === 0).map((n) => n.id);
+  queue.forEach((id) => (layer[id] = 0));
+  const done = new Set();
+  while (queue.length) {
+    const next = [];
+    for (const id of queue) {
+      done.add(id);
+      for (const t of out[id]) {
+        layer[t] = Math.max(layer[t] ?? 0, layer[id] + 1);
+        if (--indeg[t] === 0) next.push(t);
       }
     }
-
-    // 3. Link Spring Attraction
-    edges.forEach((e) => {
-      const a = positions[e.source_node_id];
-      const b = positions[e.target_node_id];
-      if (!a || !b) return;
-
-      const dx = b.x - a.x;
-      const dy = b.y - a.y;
-      const dist = Math.sqrt(dx * dx + dy * dy) || 1;
-      const displacement = dist - springLength;
-
-      const fx = (dx / dist) * displacement * springStrength;
-      const fy = (dy / dist) * displacement * springStrength;
-
-      forces[e.source_node_id].x += fx;
-      forces[e.source_node_id].y += fy;
-      forces[e.target_node_id].x -= fx;
-      forces[e.target_node_id].y -= fy;
-    });
-
-    // 4. Inward Centering Gravity
-    const centerX = width / 2;
-    const centerY = height / 2;
-    nodeIds.forEach((id) => {
-      forces[id].x += (centerX - positions[id].x) * centerStrength;
-      forces[id].y += (centerY - positions[id].y) * centerStrength;
-    });
-
-    // 5. Update positions with step damping
-    const maxStep = 35 * temperature;
-    nodeIds.forEach((id) => {
-      const fx = Math.max(-maxStep, Math.min(maxStep, forces[id].x * 0.035));
-      const fy = Math.max(-maxStep, Math.min(maxStep, forces[id].y * 0.035));
-      positions[id].x += fx;
-      positions[id].y += fy;
-    });
-
-    temperature -= coolingRate;
+    queue = next;
   }
+  nodes.forEach((n) => {
+    if (done.has(n.id)) return;
+    const resolved = inc[n.id].filter((s) => layer[s] !== undefined).map((s) => layer[s] + 1);
+    layer[n.id] = resolved.length ? Math.max(...resolved) : 0;
+  });
+
+  // Unconnected nodes get their own layer at the end so they don't clutter the flow.
+  const isolated = nodes.filter((n) => out[n.id].length === 0 && inc[n.id].length === 0);
+  const isolatedIds = new Set(isolated.map((n) => n.id));
+  const connected = nodes.filter((n) => !isolatedIds.has(n.id));
+  const layerCount = connected.length ? Math.max(...connected.map((n) => layer[n.id])) + 1 : 0;
+  isolated.forEach((n) => (layer[n.id] = layerCount));
+
+  const layers = [];
+  nodes.forEach((n) => {
+    (layers[layer[n.id]] ||= []).push(n.id);
+  });
+  for (let i = 0; i < layers.length; i++) layers[i] ||= [];
+
+  // 2. Initial order: type, then path/label, so related endpoints start together.
+  const sortKey = (id) => {
+    const n = byId[id];
+    return [TYPE_RANK[n.node_type] ?? 9, (n.path || n.label || "").toLowerCase(), n.method || ""];
+  };
+  const cmp = (a, b) => {
+    const ka = sortKey(a);
+    const kb = sortKey(b);
+    return ka[0] - kb[0] || ka[1].localeCompare(kb[1]) || ka[2].localeCompare(kb[2]);
+  };
+  layers.forEach((l) => l.sort(cmp));
+
+  // 3. Barycenter sweeps (forward on dependents, backward on dependencies).
+  const order = {};
+  const reindex = () =>
+    layers.forEach((l) => l.forEach((id, i) => (order[id] = l.length > 1 ? i / (l.length - 1) : 0.5)));
+  reindex();
+  const bary = (id, neighbors) => {
+    const ns = neighbors[id];
+    if (!ns.length) return order[id];
+    return ns.reduce((sum, n) => sum + order[n], 0) / ns.length;
+  };
+  for (let pass = 0; pass < 3; pass++) {
+    for (let i = 1; i < layers.length; i++) {
+      if (i === layerCount) continue; // isolated layer keeps alphabetical order
+      const scores = Object.fromEntries(layers[i].map((id) => [id, bary(id, inc)]));
+      layers[i].sort((a, b) => scores[a] - scores[b] || cmp(a, b));
+      reindex();
+    }
+    for (let i = layers.length - 2; i >= 0; i--) {
+      if (i === layerCount) continue;
+      const scores = Object.fromEntries(layers[i].map((id) => [id, bary(id, out)]));
+      layers[i].sort((a, b) => scores[a] - scores[b] || cmp(a, b));
+      reindex();
+    }
+  }
+
+  // 4. Choose how tall a column may get so the whole layout is roughly as wide
+  //    as it is tall (times targetAspect); a 60-node layer becomes 3 columns
+  //    rather than one very tall strip.
+  const rowStep = NODE_H + gapY;
+  const nonEmpty = layers.filter((l) => l.length > 0);
+  const measure = (cap) => {
+    let cols = 0;
+    let rows = 1;
+    nonEmpty.forEach((l) => {
+      const c = Math.ceil(l.length / cap);
+      cols += c;
+      rows = Math.max(rows, Math.ceil(l.length / c));
+    });
+    const width = cols * (NODE_W + gapCol) + (nonEmpty.length - 1) * (gapLayer - gapCol);
+    return { width, height: rows * rowStep };
+  };
+  let maxPerColumn = opts.maxPerColumn;
+  if (!maxPerColumn) {
+    const longest = Math.max(1, ...nonEmpty.map((l) => l.length));
+    let best = Infinity;
+    for (let cap = 6; cap <= Math.max(6, longest); cap++) {
+      const { width, height } = measure(cap);
+      const score = Math.abs(Math.log(width / height / targetAspect));
+      if (score < best - 1e-9) {
+        best = score;
+        maxPerColumn = cap;
+      }
+    }
+  }
+
+  // 5. Place: wrap tall layers into balanced columns, center columns vertically.
+  const positions = {};
+  const tallest = Math.max(1, ...layers.map((l) => Math.min(maxPerColumn, l.length)));
+  let cursorX = margin;
+  layers.forEach((l) => {
+    if (l.length === 0) return;
+    const cols = Math.ceil(l.length / maxPerColumn);
+    const per = Math.ceil(l.length / cols);
+    for (let c = 0; c < cols; c++) {
+      const slice = l.slice(c * per, (c + 1) * per);
+      const yOffset = ((tallest - slice.length) * rowStep) / 2;
+      slice.forEach((id, r) => {
+        positions[id] = {
+          x: Math.round(cursorX + NODE_W / 2),
+          y: Math.round(margin + yOffset + r * rowStep + NODE_H / 2),
+        };
+      });
+      cursorX += NODE_W + (c === cols - 1 ? gapLayer : gapCol);
+    }
+  });
 
   return positions;
 }

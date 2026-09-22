@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useCallback, useRef } from "react";
+import Icon from "../components/ui/Icon";
 
 const ToastContext = createContext(null);
 
@@ -11,11 +12,11 @@ export function ToastProvider({ children }) {
   }, []);
 
   const push = useCallback(
-    (message, variant = "default", options = {}) => {
+    (message, variant = "default") => {
       const id = ++idRef.current;
-      const toast = { id, message, variant, action: options.action };
-      setToasts((t) => [...t, toast]);
-      setTimeout(() => dismiss(id), options.action ? 6000 : 4200);
+      setToasts((t) => [...t, { id, message, variant }]);
+      // Errors stay a little longer so they can be read.
+      setTimeout(() => dismiss(id), variant === "error" ? 7000 : 4200);
     },
     [dismiss]
   );
@@ -25,20 +26,13 @@ export function ToastProvider({ children }) {
       {children}
       <div className="toast-stack" aria-live="polite">
         {toasts.map((t) => (
-          <div key={t.id} className={`toast toast-${t.variant}`}>
-            <span onClick={() => dismiss(t.id)} style={{ cursor: "pointer" }}>{t.message}</span>
-            {t.action && (
-              <button
-                className="btn btn-sm"
-                style={{ marginLeft: 10, background: "transparent", borderColor: "rgba(255,255,255,0.4)", color: "#fff" }}
-                onClick={() => {
-                  t.action.onClick();
-                  dismiss(t.id);
-                }}
-              >
-                {t.action.label}
-              </button>
-            )}
+          <div key={t.id} className={`toast toast-${t.variant}`} role={t.variant === "error" ? "alert" : "status"}>
+            {t.variant === "success" && <Icon name="check-circle" />}
+            {t.variant === "error" && <Icon name="alert-circle" />}
+            <div className="toast-message">{t.message}</div>
+            <button type="button" className="btn btn-icon" onClick={() => dismiss(t.id)} aria-label="Dismiss notification">
+              <Icon name="x" size={14} />
+            </button>
           </div>
         ))}
       </div>

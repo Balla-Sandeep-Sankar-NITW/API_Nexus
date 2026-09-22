@@ -1,27 +1,31 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import Alert from "../components/ui/Alert";
+import AuthLayout from "../components/AuthLayout";
 
 export default function Register() {
   const { register } = useAuth();
+  const navigate = useNavigate();
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [passwordError, setPasswordError] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [result, setResult] = useState(null); // { message, email_sent, verification_token }
 
   async function handleSubmit(e) {
     e.preventDefault();
     setError("");
+    setPasswordError("");
     if (password.length < 8) {
-      setError("Password must be at least 8 characters");
+      setPasswordError("Password must be at least 8 characters.");
       return;
     }
     setSubmitting(true);
     try {
-      const res = await register(email, fullName, password);
-      setResult(res);
+      await register(email, fullName, password);
+      navigate("/");
     } catch (err) {
       setError(err.message || "Could not create account");
     } finally {
@@ -29,51 +33,16 @@ export default function Register() {
     }
   }
 
-  if (result) {
-    return (
-      <div className="auth-shell">
-        <div className="auth-card">
-          <div className="auth-brand">API Nexus</div>
-          <div className="auth-tagline">One more step</div>
-          <p style={{ fontSize: 13, color: "var(--ink-700)" }}>{result.message}</p>
-          <p style={{ fontSize: 12.5, color: "var(--ink-500)" }}>
-            You won't be able to log in until this account is verified.
-          </p>
-          {result.email_sent && (
-            <p style={{ fontSize: 12.5, color: "var(--status-green)" }}>
-              Check your inbox at {email} for the verification link.
-            </p>
-          )}
-          {result.verification_token && (
-            <div className="field-hint" style={{ marginBottom: 14 }}>
-              This server has no email provider configured (see <code>SMTP_HOST</code> in the backend .env),
-              so here's a direct link instead of an email:
-              <div style={{ marginTop: 6 }}>
-                <Link to={`/verify-email?token=${result.verification_token}`} className="btn btn-sm btn-primary">
-                  Verify now
-                </Link>
-              </div>
-            </div>
-          )}
-          <div className="auth-switch">
-            <Link to="/login">Back to log in</Link>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="auth-shell">
-      <div className="auth-card">
-        <div className="auth-brand">API Nexus</div>
-        <div className="auth-tagline">Create your account</div>
-        {error && <div className="auth-error">{error}</div>}
+    <AuthLayout>
+        <h1>Create account</h1>
+        {error && <Alert>{error}</Alert>}
         <form onSubmit={handleSubmit}>
           <div className="field">
             <label htmlFor="fullName">Full name</label>
             <input
               id="fullName"
+              autoComplete="name"
               value={fullName}
               onChange={(e) => setFullName(e.target.value)}
               placeholder="Sandeep Rao"
@@ -86,6 +55,7 @@ export default function Register() {
             <input
               id="email"
               type="email"
+              autoComplete="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="you@company.com"
@@ -97,20 +67,31 @@ export default function Register() {
             <input
               id="password"
               type="password"
+              autoComplete="new-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="At least 8 characters"
+              aria-invalid={passwordError ? "true" : undefined}
+              aria-describedby="password-help"
               required
             />
+            {passwordError ? (
+              <div id="password-help" className="field-error" role="alert">{passwordError}</div>
+            ) : (
+              <div id="password-help" className="field-hint">At least 8 characters.</div>
+            )}
           </div>
-          <button className="btn btn-primary" type="submit" style={{ width: "100%" }} disabled={submitting}>
+          <button
+            className={`btn btn-primary btn-block${submitting ? " is-loading" : ""}`}
+            type="submit"
+            disabled={submitting}
+            aria-busy={submitting}
+          >
             {submitting ? "Creating account…" : "Create account"}
           </button>
         </form>
-        <div className="auth-switch">
+        <p className="auth-switch">
           Already have an account? <Link to="/login">Log in</Link>
-        </div>
-      </div>
-    </div>
+        </p>
+    </AuthLayout>
   );
 }

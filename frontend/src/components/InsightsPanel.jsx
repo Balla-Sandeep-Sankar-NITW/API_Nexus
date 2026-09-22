@@ -1,6 +1,11 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
+import EmptyState from "./ui/EmptyState";
+
+const INITIAL_ROWS = 20;
 
 export default function InsightsPanel({ graph }) {
+  const [showAll, setShowAll] = useState(false);
+
   const stats = useMemo(() => {
     if (!graph) return [];
     const counts = {};
@@ -26,57 +31,84 @@ export default function InsightsPanel({ graph }) {
 
   if (!graph || graph.nodes.length === 0) {
     return (
-      <div className="empty-state panel">
-        <h3>Nothing to analyze yet</h3>
-        <p>Import an OpenAPI spec or add nodes to see connection density and critical components.</p>
-      </div>
+      <EmptyState title="Nothing to analyze yet">
+        Import an OpenAPI spec or add nodes to see connection density and critical components.
+      </EmptyState>
     );
   }
 
+  const visible = showAll ? stats : stats.slice(0, INITIAL_ROWS);
+
   return (
-    <div>
+    <>
       {critical.length > 0 && (
-        <div className="panel" style={{ marginBottom: 16 }}>
-          <div className="panel-header"><h2 style={{ margin: 0 }}>High dependency concentration</h2></div>
-          <div className="panel-body">
-            <p style={{ fontSize: 12.5, color: "var(--ink-500)", marginTop: 0 }}>
-              These components have 3 or more services depending on them directly — a failure here has a wide blast radius.
-            </p>
-            {critical.map((c) => (
-              <div key={c.id} className="detail-row">
-                <span className="k">{c.label}</span>
-                <span className="v">{c.dependents} direct dependents</span>
-              </div>
-            ))}
+        <section className="section">
+          <div className="section-head">
+            <h2>High dependency concentration</h2>
+            <p>These components have 3 or more services depending on them directly. A failure here has a wide blast radius.</p>
           </div>
-        </div>
+          <div className="table-wrap stack">
+            <table className="table">
+              <thead>
+                <tr>
+                  <th scope="col">Component</th>
+                  <th scope="col">Type</th>
+                  <th scope="col" className="num">Direct dependents</th>
+                </tr>
+              </thead>
+              <tbody>
+                {critical.map((c) => (
+                  <tr key={c.id}>
+                    <td className="primary">{c.label}</td>
+                    <td className="text-muted" data-label="Type">{c.type}</td>
+                    <td className="num" data-label="Direct dependents">{c.dependents}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
       )}
 
-      <div className="panel">
-        <div className="panel-header"><h2 style={{ margin: 0 }}>Dependency heatmap</h2></div>
-        <div className="panel-body">
-          <p style={{ fontSize: 12.5, color: "var(--ink-500)", marginTop: 0 }}>
-            Total connections (incoming + outgoing) per node.
-          </p>
-          {stats.map((s) => (
-            <div key={s.id} style={{ marginBottom: 10 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, marginBottom: 3 }}>
-                <span>{s.label}</span>
-                <span style={{ color: "var(--ink-500)" }}>{s.total}</span>
-              </div>
-              <div style={{ background: "var(--surface-2)", borderRadius: 3, height: 6, overflow: "hidden" }}>
-                <div
-                  style={{
-                    width: `${(s.total / max) * 100}%`,
-                    background: "var(--accent)",
-                    height: "100%",
-                  }}
-                />
-              </div>
-            </div>
-          ))}
+      <section className="section">
+        <div className="section-head">
+          <h2>Connections per node</h2>
+          <p>Incoming plus outgoing links, highest first.</p>
         </div>
-      </div>
-    </div>
+        <div className="table-wrap stack">
+          <table className="table">
+            <thead>
+              <tr>
+                <th scope="col">Node</th>
+                <th scope="col" className="hide-narrow">Type</th>
+                <th scope="col" className="num">Dependents</th>
+                <th scope="col" className="num">Dependencies</th>
+                <th scope="col" className="num">Total</th>
+                <th scope="col" className="hide-narrow hide-stack"><span className="sr-only">Relative share</span></th>
+              </tr>
+            </thead>
+            <tbody>
+              {visible.map((s) => (
+                <tr key={s.id}>
+                  <td className="primary">{s.label}</td>
+                  <td className="text-muted hide-narrow" data-label="Type">{s.type}</td>
+                  <td className="num" data-label="Dependents">{s.dependents}</td>
+                  <td className="num" data-label="Dependencies">{s.dependencies}</td>
+                  <td className="num" data-label="Total">{s.total}</td>
+                  <td className="hide-narrow hide-stack" aria-hidden="true">
+                    <span className="meter"><span style={{ width: `${(s.total / max) * 100}%` }} /></span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        {stats.length > INITIAL_ROWS && (
+          <button type="button" className="btn btn-sm" style={{ marginTop: "var(--sp-3)" }} onClick={() => setShowAll((v) => !v)}>
+            {showAll ? "Show top 20" : `Show all ${stats.length} nodes`}
+          </button>
+        )}
+      </section>
+    </>
   );
 }

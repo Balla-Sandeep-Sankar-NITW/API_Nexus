@@ -40,15 +40,15 @@ export default function PathExplorerModal({ projectId, nodes, onClose, onFocusCh
       width="480px"
       footer={
         <>
-          <button className="btn" onClick={onClose}>Close</button>
-          <button className="btn btn-primary" onClick={handleFind} disabled={loading || nodes.length < 2}>
+          <button type="button" className="btn" onClick={onClose}>Close</button>
+          <button type="button" className={`btn btn-primary${loading ? " is-loading" : ""}`} onClick={handleFind} disabled={loading || nodes.length < 2} aria-busy={loading}>
             {loading ? "Searching…" : "Find path"}
           </button>
         </>
       }
     >
       {nodes.length < 2 ? (
-        <p style={{ fontSize: 13 }}>You need at least two nodes on the graph to explore a path.</p>
+        <p className="text-sm">You need at least two nodes on the graph to explore a path.</p>
       ) : (
         <>
           <div className="field">
@@ -76,13 +76,13 @@ export default function PathExplorerModal({ projectId, nodes, onClose, onFocusCh
           </div>
 
           {result && (
-            <div style={{ marginTop: 12 }}>
+            <div style={{ marginTop: "var(--sp-4)" }} aria-live="polite">
               {result.reachable ? (
                 <>
-                  <div className="field-hint" style={{ marginBottom: 6 }}>
+                  <div className="field-hint" style={{ margin: "0 0 var(--sp-2)" }}>
                     Shortest path — {result.length} hop{result.length === 1 ? "" : "s"}. Highlighted on the graph.
                   </div>
-                  <div className="impact-path">{result.path_labels.join(" → ")}</div>
+                  <div className="path-chain path-static">{result.path_labels.join(" → ")}</div>
                 </>
               ) : (
                 <div className="field-hint">No dependency path found between these two nodes in this direction.</div>

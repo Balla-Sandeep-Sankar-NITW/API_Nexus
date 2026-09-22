@@ -3,7 +3,10 @@ import { Link, useNavigate } from "react-router-dom";
 import { api } from "../api/client";
 import { useToast } from "../context/ToastContext";
 import Modal from "../components/Modal";
-import TopBar from "../components/TopBar";
+import Alert from "../components/ui/Alert";
+import Monogram from "../components/ui/Monogram";
+import EmptyState from "../components/ui/EmptyState";
+import LoadingRow from "../components/ui/LoadingRow";
 
 export default function Dashboard() {
   const [projects, setProjects] = useState(null);
@@ -44,44 +47,72 @@ export default function Dashboard() {
 
   return (
     <>
-      <TopBar breadcrumb={<span className="current">Projects</span>} />
-      <div className="content">
-        <div className="toolbar">
-          <h1 style={{ margin: 0 }}>Projects</h1>
-          <div className="toolbar-spacer" />
-          <button className="btn btn-primary" onClick={() => setShowCreate(true)}>
-            New project
-          </button>
+      <div className="topbar">
+        <div className="breadcrumb">
+          <span className="current">Projects</span>
         </div>
-
-        {projects === null && <div className="loading-row"><span className="spinner" />Loading projects…</div>}
-
-        {projects && projects.length === 0 && (
-          <div className="empty-state panel">
-            <h3>No projects yet</h3>
-            <p>Create a project, then import an OpenAPI spec to generate its first dependency graph.</p>
-            <button className="btn btn-primary" onClick={() => setShowCreate(true)}>
-              Create your first project
+      </div>
+      <div className="page">
+        <div className="page-inner is-narrow">
+          <div className="page-head">
+            <h1>Projects</h1>
+            <button type="button" className="btn btn-primary" onClick={() => setShowCreate(true)}>
+              New project
             </button>
           </div>
-        )}
 
-        {projects && projects.length > 0 && (
-          <div className="project-grid">
-            {projects.map((p) => (
-              <Link key={p.id} to={`/projects/${p.id}`} className="project-card">
-                <div className="project-card-name">{p.name}</div>
-                <div className="project-card-desc">{p.description || "No description"}</div>
-                <div className="project-card-stats">
-                  <span><strong>{p.node_count}</strong> nodes</span>
-                  <span><strong>{p.edge_count}</strong> edges</span>
-                  <span><strong>{p.member_count}</strong> members</span>
-                  <span style={{ marginLeft: "auto", textTransform: "capitalize" }}>{p.my_role}</span>
-                </div>
-              </Link>
-            ))}
-          </div>
-        )}
+          {projects === null && <LoadingRow>Loading projects…</LoadingRow>}
+
+          {projects && projects.length === 0 && (
+            <EmptyState
+              title="No projects yet"
+              action={
+                <button type="button" className="btn btn-primary" onClick={() => setShowCreate(true)}>
+                  Create a project
+                </button>
+              }
+            >
+              Create a project, then import an OpenAPI spec to generate its first dependency graph.
+            </EmptyState>
+          )}
+
+          {projects && projects.length > 0 && (
+            <div className="table-wrap stack">
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th scope="col">Project</th>
+                    <th scope="col" className="num">Nodes</th>
+                    <th scope="col" className="num hide-narrow">Edges</th>
+                    <th scope="col" className="num hide-narrow">Members</th>
+                    <th scope="col">Your role</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {projects.map((p) => (
+                    <tr key={p.id} className="is-link" onClick={() => navigate(`/projects/${p.id}`)}>
+                      <td className="primary">
+                        <div className="project-cell">
+                          <Monogram name={p.name} />
+                          <div className="truncate">
+                            <Link to={`/projects/${p.id}`} className="project-name" onClick={(e) => e.stopPropagation()}>
+                              {p.name}
+                            </Link>
+                            {p.description && <span className="project-desc truncate">{p.description}</span>}
+                          </div>
+                        </div>
+                      </td>
+                      <td className="num" data-label="Nodes">{p.node_count}</td>
+                      <td className="num hide-narrow" data-label="Edges">{p.edge_count}</td>
+                      <td className="num hide-narrow" data-label="Members">{p.member_count}</td>
+                      <td data-label="Your role"><span className={`role-chip role-${p.my_role}`}>{p.my_role}</span></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
       </div>
 
       {showCreate && (
@@ -90,17 +121,23 @@ export default function Dashboard() {
           onClose={() => setShowCreate(false)}
           footer={
             <>
-              <button className="btn" onClick={() => setShowCreate(false)}>
+              <button type="button" className="btn" onClick={() => setShowCreate(false)}>
                 Cancel
               </button>
-              <button className="btn btn-primary" form="create-project-form" type="submit" disabled={creating}>
+              <button
+                className={`btn btn-primary${creating ? " is-loading" : ""}`}
+                form="create-project-form"
+                type="submit"
+                disabled={creating}
+                aria-busy={creating}
+              >
                 {creating ? "Creating…" : "Create project"}
               </button>
             </>
           }
         >
+          {formError && <Alert>{formError}</Alert>}
           <form id="create-project-form" onSubmit={handleCreate}>
-            {formError && <div className="auth-error">{formError}</div>}
             <div className="field">
               <label htmlFor="proj-name">Project name</label>
               <input
