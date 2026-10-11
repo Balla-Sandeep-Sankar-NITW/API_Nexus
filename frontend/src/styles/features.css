@@ -1,0 +1,333 @@
+/*
+  Styles for the screens that surface the rest of the backend: auth emails,
+  notifications, sharing, findings, snapshots, freeze plans, link management.
+  Tokens only; shapes and spacing follow ui.css.
+*/
+
+/* ---------- Inline notices (dev-mode links, warnings) ---------- */
+.notice {
+  margin: 0 0 var(--sp-4);
+  padding: 9px 12px;
+  border: 1px solid var(--accent-line);
+  border-radius: var(--radius-sm);
+  background: var(--accent-tint);
+  color: var(--ink-900);
+  font-size: var(--fs-sm);
+  line-height: var(--lh-body);
+}
+.notice > div { margin-top: var(--sp-1); }
+.notice-warn {
+  border-color: #ecd09a;
+  background: var(--amber-tint);
+}
+
+/* ---------- Auth pages ---------- */
+.auth-lede {
+  margin: 0 0 var(--sp-4);
+  color: var(--ink-700);
+  font-size: var(--fs-base);
+  line-height: var(--lh-body);
+}
+.auth-actions {
+  display: grid;
+  gap: var(--sp-2);
+}
+.auth-actions .btn { text-decoration: none; }
+.auth-card a.btn { display: inline-flex; justify-content: center; align-items: center; text-decoration: none; }
+
+/* ---------- Profile: sign-in history ---------- */
+.history-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: var(--sp-2);
+  font-size: var(--fs-sm);
+}
+.history-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+}
+
+/* ---------- Notification bell ---------- */
+.notif-btn {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  width: 100%;
+  height: 34px;
+  padding: 0 var(--sp-3);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--ink-700);
+  font: inherit;
+  font-size: var(--fs-sm);
+  font-weight: 500;
+  cursor: pointer;
+  transition: background var(--t-fast) var(--ease), color var(--t-fast) var(--ease);
+}
+.notif-btn:hover,
+.notif-btn[aria-expanded="true"] {
+  background: var(--surface-2);
+  color: var(--ink-900);
+}
+.notif-count {
+  margin-left: auto;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #fff;
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  line-height: 20px;
+  text-align: center;
+}
+.notif-panel {
+  position: fixed;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  max-height: min(70vh, 520px);
+  background: var(--surface-0);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-pop);
+  animation: pop-in 100ms var(--ease);
+}
+.notif-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-4);
+  border-bottom: 1px solid var(--line);
+}
+.notif-head h2 { margin: 0; font-size: var(--fs-base); }
+.notif-empty {
+  margin: 0;
+  padding: var(--sp-5) var(--sp-4);
+  color: var(--ink-500);
+  font-size: var(--fs-sm);
+  line-height: var(--lh-body);
+}
+.notif-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  overflow-y: auto;
+}
+.notif-item {
+  display: grid;
+  gap: 2px;
+  width: 100%;
+  padding: var(--sp-3) var(--sp-4);
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  background: transparent;
+  color: var(--ink-700);
+  font: inherit;
+  font-size: var(--fs-sm);
+  text-align: left;
+  cursor: pointer;
+}
+.notif-item:hover { background: var(--surface-1); }
+.notif-item.is-unread {
+  background: var(--accent-tint);
+  box-shadow: inset 3px 0 0 var(--accent);
+  color: var(--ink-900);
+}
+.notif-item-top {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  font-size: var(--fs-xs);
+}
+.notif-type { font-weight: 600; }
+.notif-msg { line-height: var(--lh-body); }
+
+@media (max-width: 860px) {
+  .notif-btn { width: auto; height: 32px; }
+  .notif-label { display: none; }
+  .notif-count { margin-left: 2px; }
+}
+
+/* ---------- Dashboard totals / generic stat row ---------- */
+.stat-row {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1px;
+  margin: 0 0 var(--sp-5);
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--line);
+}
+.stat-row > div {
+  padding: var(--sp-3) var(--sp-4);
+  background: var(--surface-0);
+}
+.stat-row dt {
+  color: var(--ink-500);
+  font-size: var(--fs-xs);
+}
+.stat-row dd {
+  margin: 2px 0 0;
+  color: var(--ink-900);
+  font-size: var(--fs-xl);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.stat-row-tight { grid-template-columns: repeat(3, minmax(0, 1fr)); margin-bottom: var(--sp-3); }
+.stat-row-tight dd { font-size: var(--fs-lg); }
+@media (max-width: 640px) {
+  .stat-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+/* ---------- Project header ---------- */
+.project-settings-btn { margin-left: auto; flex-shrink: 0; }
+.project-settings-btn .icon { margin-right: 4px; }
+
+/* ---------- Share link ---------- */
+.copy-row {
+  display: flex;
+  gap: var(--sp-2);
+  margin-bottom: var(--sp-3);
+}
+.copy-row input { flex: 1; min-width: 0; font-family: var(--font-mono); font-size: var(--fs-xs); }
+
+/* ---------- Shared (public) view ---------- */
+.shared-shell { min-height: 100vh; background: var(--surface-1); }
+.shared-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  height: var(--topbar-h);
+  padding: 0 var(--sp-5);
+  border-bottom: 1px solid var(--line);
+  background: var(--surface-0);
+}
+.shared-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  font-weight: 600;
+  color: var(--ink-900);
+}
+.shared-body {
+  max-width: var(--content-max);
+  margin: 0 auto;
+  padding: var(--sp-5);
+}
+
+/* ---------- Import preview ---------- */
+.import-preview {
+  margin-top: var(--sp-2);
+  padding: var(--sp-3) var(--sp-4);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--surface-1);
+}
+.import-preview h3 { margin: 0 0 var(--sp-3); font-size: var(--fs-base); }
+.preview-list { margin-top: var(--sp-2); font-size: var(--fs-sm); }
+.preview-list summary { cursor: pointer; color: var(--ink-700); font-weight: 500; }
+.preview-list ul {
+  margin: var(--sp-2) 0 0;
+  padding: 0;
+  max-height: 160px;
+  overflow-y: auto;
+  list-style: none;
+  font-size: var(--fs-xs);
+  line-height: 1.8;
+}
+
+/* ---------- Findings ---------- */
+.finding-counts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  margin-bottom: var(--sp-3);
+}
+.finding-list {
+  display: grid;
+  gap: var(--sp-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.finding {
+  padding: var(--sp-3) var(--sp-4);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--surface-0);
+  font-size: var(--fs-sm);
+}
+.finding-head {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  margin-bottom: var(--sp-2);
+}
+.finding p { margin: 0 0 var(--sp-2); color: var(--ink-700); line-height: var(--lh-body); }
+.finding .btn { margin-top: var(--sp-1); }
+
+/* ---------- Snapshots form ---------- */
+.inline-form {
+  display: flex;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: var(--sp-3);
+  margin-bottom: var(--sp-4);
+}
+.inline-form .field { flex: 1 1 240px; margin: 0; }
+
+/* ---------- Node detail: links, edge-type chips, comments ---------- */
+.chip-group { display: flex; flex-wrap: wrap; gap: var(--sp-2); }
+.chip-group .chip { padding: 0 10px; }
+
+.link-group + .link-group { margin-top: var(--sp-3); }
+.link-group h4 { margin: 0 0 var(--sp-1); font-size: var(--fs-xs); color: var(--ink-500); font-weight: 600; }
+.link-heading { margin: var(--sp-4) 0 var(--sp-1); font-size: var(--fs-sm); }
+.link-list { margin: 0; padding: 0; list-style: none; font-size: var(--fs-sm); }
+.link-list li {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  min-height: 30px;
+  border-bottom: 1px solid var(--line);
+}
+.link-list li:last-child { border-bottom: 0; }
+.link-btn {
+  flex: 1;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.link-btn:hover { text-decoration: underline; }
+.link-type { flex-shrink: 0; font-size: var(--fs-xs); }
+.link-actions { display: inline-flex; flex-shrink: 0; }
+
+.comment-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-2);
+  margin-bottom: var(--sp-2);
+  font-size: var(--fs-xs);
+  color: var(--ink-700);
+}
+.check { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
+.suggestion-tag { margin: var(--sp-1) 0; }
+
+/* ---------- Freeze plans ---------- */
+.plan + .plan { margin-top: var(--sp-6); }
