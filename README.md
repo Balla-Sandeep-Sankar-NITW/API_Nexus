@@ -22,7 +22,7 @@
 
   <br />
 
-  <img src="https://github.com/user-attachments/assets/469fd959-fe11-41f3-b334-14bd5cafe99a" alt="API Nexus Hero" width="100%" />
+  <img height = 50% width = 80% src="https://github.com/user-attachments/assets/469fd959-fe11-41f3-b334-14bd5cafe99a" alt="API Nexus Hero" width="100%" />
 
 </div>
 
@@ -31,22 +31,110 @@
 
 ## 📖 Overview
 
-**API Nexus** solves the microservice dependency black box. When working with complex API architectures, understanding downstream impacts during breaking changes is critical. 
+**API Nexus** turns your OpenAPI specs into a living, interactive dependency map, so you can answer the scariest question in software: *"what breaks if I change this?"*
 
-By parsing OpenAPI specifications, API Nexus automatically constructs visual dependency trees, allows real-time team collaboration, and features a powerful **Freeze & Impact Analysis engine** to show you exactly what will break before a deployment happens.
+It maps every endpoint, schema and auth scheme, lets your team add the services, databases and third parties that specs don't describe, and then helps you **analyse impact, plan freezes, score risk, track deprecations, and even call the APIs**, all in one place.
 
 ---
 
-## ✨ Key Features
+## ✨ Features
 
-- **🔐 Auth & RBAC** — Secure JWT authentication with email verification, password reset workflows, and granular role permissions (`Leader`, `Member`, `Viewer`).
-- **📑 OpenAPI Parsing & Diffing** — Instantly convert OpenAPI (Swagger) specs into structured dependency graphs with built-in version history and diff tracking.
-- **🤝 Real-Time Collaboration** — Add, edit, or delete nodes and edges alongside teammates. Supports inline comments, `@mentions`, and proposed change suggestions.
-- **❄️ Freeze & Impact Analysis** — Lock down any endpoint or service node to visually highlight all impacted downstream dependencies across your architectural tree.
-- **🧪 What-If Simulation** — Safely model the removal, migration, or downtime of specific endpoints before altering production environments.
-- **📊 Architectural Insights** — Automated system health audits detailing dependency heatmaps, high-fan-in hotspots, unauthenticated endpoints, and isolated services.
-- **📦 Multi-Format Export** — Export graph diagrams as `JSON`, `CSV`, `SVG`, or `PNG`, or generate clean, print-ready PDF impact reports.
-- **📜 Audit Log & Notifications** — Complete visibility into system edits, project history, and collaborative activity.
+### 🔐 Accounts & Security
+- Sign up with **email verification**; log in and out with **JWT access + refresh tokens** (sessions refresh silently)
+- **Password reset** by email link, plus resend-verification
+- Passwords hashed with **bcrypt**
+- Profile settings and a **sign-in history** of successful and failed logins
+- **Role-based access control** (Leader / Member / Viewer) enforced on the server for every action
+- **Audit trail** of who did what, and when
+
+### 📁 Projects & Teams
+- Create, rename, describe, **archive / restore** and delete projects (delete is owner-only)
+- Dashboard with **totals** across your projects: projects, nodes, dependency links and memberships
+- Invite members by email, **change roles** and remove members
+- **Public read-only share link** you can turn on and off, with a view-only graph page for anyone who has it
+- **Notification centre**: mentions, role changes, new members, freezes, imports, suggestion reviews and owner alerts, with mark-read, dismiss and clear-all
+
+### 📥 OpenAPI Import & Versions
+- Import **OpenAPI 3.x as JSON or YAML**: upload a file or paste it
+- **Validation** with clear errors and a **preview before importing** (endpoint, schema and security-scheme counts, lists and warnings)
+- Auto-generates nodes for **endpoints, schemas and auth schemes**, and links for **endpoint → schema** and **endpoint → auth** (including per-operation security overrides)
+- **Import version history** and a **side-by-side comparison** of any two versions (added and removed endpoints, schemas and security schemes)
+- Warns when re-importing a spec that is already in the project
+
+### 🕸️ Interactive Dependency Graph
+- Custom-built canvas: **zoom, pan, drag nodes, fit to screen**, keyboard shortcuts and a legend
+- **Auto-arrange** layered layout (with confirmation) and smart free-slot placement for new nodes
+- **Search** and **filter by node type**
+- Seven node types: **API, Schema, Auth, Service, Database, External, Custom**; five link types: **depends on, calls, uses schema, uses auth, custom**
+- Add, **edit and delete** nodes and links by hand, so the graph covers what specs don't
+- **Path explorer** to find the shortest dependency path between any two nodes
+- **Focus mode** that isolates a node and its neighbours up to a chosen radius
+- Detail panel per node: type, source, owner, dependents, dependencies, risk and links, with collapsible tools
+- Export the graph as **JSON, CSV, SVG image** or a **full HTML report**
+
+### 💥 Impact Analysis & Freeze
+- **Impact preview** in both directions: *who depends on this* and *what this depends on*
+- **Depth control** (direct only, 2 or 3 levels, all) and a **kind-of-change filter** (schema, auth, calls...)
+- Direct vs indirect counts and **"why is this affected?" dependency chains**, highlighted on the graph
+- Results **update live** as you change settings
+- **Temporary freeze** (visual) and **permanent project freeze** (leaders), with clear status colours: active, impacted, frozen, selected
+- **What-if simulation**: remove a node, or take it down temporarily, and see what's affected and what would lose every dependency
+- **"Safe to remove?" check** that names exactly what still depends on a node
+
+### 🧊 Freeze Plans
+- Generate an **ordered, step-by-step plan** from any node
+- Track each step through **Pending → Frozen → Testing → Verified → Unfrozen**
+- Collapsible plan cards with **progress bars** and an "all steps done" indicator
+- **Delete plans** with a confirmation when they are finished or created by mistake
+
+### 🧠 Smart Insights
+- **Risk score (0 to 100)** for every node, explained factor by factor: blast radius, direct dependents, dependency depth, missing authentication, missing owner and deprecated-but-still-used
+- **Risk heatmap** overlay on the graph and a ranked risk table
+- **Findings** with severity and remediation guidance
+- **Security view**: authentication coverage, endpoints without auth, coverage per auth scheme and sensitive-looking schemas exposed without auth
+- **Ownership**: owning team and contact on every node, with owner coverage shown; owners who are project members are **notified** when their components are affected
+- **Deprecation tracker**: mark nodes deprecated with a sunset date and note, then see what is **overdue, still in use, or safe to remove**
+- **One-click report** (HTML, print-to-PDF ready) covering risk, security, findings, deprecations and ownership gaps
+
+### ⏪ Snapshots & Time Travel
+- Save **named snapshots** of the graph
+- **Compare** any snapshot with the live graph
+- **Restore** a snapshot (leaders)
+- **Time Travel**: replay your architecture snapshot by snapshot with a slider, play and step controls, and see what was added or removed at each step
+- Delete snapshots you no longer need
+
+### 🧪 API Explorer
+- **Try your endpoints like Swagger**, straight from the spec you imported, and jump in from any API node on the graph
+- Forms **pre-filled from the spec**: path, query, header and cookie parameters, enums, and example request bodies built from schemas
+- **Authorize** with bearer tokens, basic auth or API keys (header, query or cookie); the right credentials are picked for each endpoint
+- JSON, form-encoded and text bodies with validation, **Format JSON** and **Reset to example**
+- Custom headers, and a live preview of the exact URL that will be called
+- Response viewer with **status, timing, size, headers and colour-coded JSON**, plus a flag showing whether the status code is **documented in the spec**
+- **Copy as cURL** with secrets automatically hidden, and a session **request history**
+- Clear, plain-language errors for blocked addresses, timeouts, unknown hosts and refused connections
+
+### 💬 Collaboration
+- **Comments** on any node
+- **@mentions** with a teammate picker and instant notifications
+- **Change suggestions** that leaders approve or reject
+- Delete your own comments (leaders can delete any)
+
+### 🕓 Activity & History
+- Per-project **Activity log** and a **History** panel on the dashboard, in plain-English labels
+- **Filter by time**: last hour, today, last 7 days, this month, all logs, or pick a specific **day** or **month**
+- **Load more** paging through the full history
+
+### 🛡️ Built-in Safeguards
+- **SSRF protection** for the API Explorer: private, internal and cloud-metadata addresses are blocked by default, hostnames are resolved and pinned to the checked IP, and redirects are never followed
+- Request time, size and per-user rate limits; viewers can read APIs but cannot send requests
+- Credentials live only in the browser tab and are wiped on logout; request and response bodies are never stored
+- Foreign-key-safe deletes, so removing a node cleans up its comments and plans
+- **Automatic database migration** on startup for existing installs
+
+### 📱 Experience
+- Fully **responsive**: desktop, tablet and phone
+- Keyboard-friendly with accessible labels and focus states
+- Consistent design system, readable empty states and loading states throughout
 
 ---
 
@@ -56,21 +144,31 @@ By parsing OpenAPI specifications, API Nexus automatically constructs visual dep
   <tr>
     <td width="50%" align="center">
       <b>Projects Dashboard</b><br/><br/>
-      <img src="https://github.com/user-attachments/assets/a2ed032c-0b05-4554-9650-294540461bce" alt="Projects Dashboard" width="100%"/>
+      <img src="https://github.com/user-attachments/assets/18a9b697-c4ad-41dc-bc26-2cd806c568b5" alt="Projects Dashboard" width="100%"/>
     </td>
     <td width="50%" align="center">
       <b>Interactive Dependency Graph</b><br/><br/>
-      <img src="https://github.com/user-attachments/assets/e328a9fd-54d4-49c5-8214-cc2115cda5b4" alt="Graph View" width="100%"/>
+      <img src="https://github.com/user-attachments/assets/aca5a8e7-7495-4c88-afd3-49270ed0bb26" alt="Graph View" width="100%"/>
     </td>
   </tr>
   <tr>
     <td width="50%" align="center">
+      <b>API Explorer</b><br/><br/>
+      <img src="https://github.com/user-attachments/assets/fa525a60-c0a3-4233-9e4a-70286a41673b" alt="API Explorer" width="100%"/>
+    </td>
+    <td width="50%" align="center">
       <b>Architectural Insights</b><br/><br/>
-      <img src="https://github.com/user-attachments/assets/ac013084-7609-4353-be7e-1cf31ad88a49" alt="Insights" width="100%"/>
+      <img src="https://github.com/user-attachments/assets/eb193dc3-3334-4ec1-b5e5-173a66080d50" alt="Insights" width="100%"/>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" align="center">
+      <b>Freeze plans</b><br/><br/>
+      <img src="https://github.com/user-attachments/assets/30807fc1-4f29-4034-baf5-0790eb6af0f2" alt="Freeze plans" width="100%"/>
     </td>
     <td width="50%" align="center">
       <b>Activity & Audit Log</b><br/><br/>
-      <img src="https://github.com/user-attachments/assets/bcbda6f7-799c-4f3e-8574-9fb9a18c73aa" alt="Activity Log" width="100%"/>
+      <img src="https://github.com/user-attachments/assets/a5b575a3-c5c6-460c-85df-2c159ff8cfb8" alt="Activity Log" width="100%"/>
     </td>
   </tr>
 </table>
@@ -79,38 +177,16 @@ By parsing OpenAPI specifications, API Nexus automatically constructs visual dep
 
 ## 🛠️ Tech Stack
 
-### Frontend
-- **Framework:** React 18 + Vite
-- **UI & Styling:** Tailwind CSS, Radix UI
-- **Graph Engine:** React Flow / Cytoscape.js
-- **State & Query Management:** React Query, Zustand
+**Frontend**
+- React 19 + Vite, React Router
+- Custom SVG graph canvas and layered layout engine
+- Hand-written CSS design system, no UI framework
 
-### Backend
-- **Framework:** FastAPI (Python 3.10+)
-- **ORM & DB Access:** SQLAlchemy / SQLModel
-- **Auth:** JWT, Passlib (Bcrypt)
-- **Parser:** OpenAPI Spec Validator
+**Backend**
+- FastAPI (Python) with Pydantic validation
+- SQLAlchemy ORM, httpx for the API Explorer, PyYAML for spec parsing
+- JWT (python-jose) and bcrypt (passlib)
 
-### Database & Hosting
-- **Database:** PostgreSQL
-- **Frontend Hosting:** Vercel
-- **Backend Hosting:** Render / Railway
-
----
-
-## API Explorer (try endpoints like Swagger)
-
-Open the **API Explorer** tab to call the endpoints from any imported OpenAPI spec. Pick an endpoint,
-check the pre-filled parameters and example body, add credentials under **Authorize** (bearer, basic or API key),
-and press **Send request**. You get the status, timing, size, headers and a colour-coded body, plus
-**Copy as cURL** (secrets hidden). On any API node in the graph, **Try this endpoint** jumps straight to it.
-
-How it works and what to know:
-
-- Requests are sent **from the API Nexus server**, so browser CORS rules don't get in the way.
-- Because the server makes the call, it **refuses private/internal addresses by default** (localhost, 10.x, 192.168.x,
-  cloud metadata). To test APIs on a private network or on your own machine, set `TRYIT_ALLOW_PRIVATE_NETWORKS=true`
-  in `backend/.env`. Redirects are never followed, calls have a time limit and size limits, and each user is rate limited.
-- Members and leaders can send; viewers can read the API but not call it.
-- Credentials stay in the browser tab (cleared on log out) and request/response bodies are never stored.
-- Only OpenAPI 3.x specs with local `$ref`s are supported; file uploads and binary bodies can't be sent yet.
+**Data & Hosting**
+- PostgreSQL in production, SQLite for local development
+- Vercel (frontend), Render (backend)
