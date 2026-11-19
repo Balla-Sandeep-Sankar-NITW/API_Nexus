@@ -1,0 +1,44 @@
+/* =========================================================
+   Motion. Used to explain what changed, never as decoration.
+   Everything here is switched off by the reduced-motion rule in base.css.
+   ========================================================= */
+
+/* One soft fade when the page changes. The wrapper must not break the flex layout. */
+.route-fade { display: flex; flex-direction: column; flex: 1; min-height: 0; animation: route-in 220ms var(--ease-out); }
+@keyframes route-in { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: none; } }
+
+/* Request progress bar */
+.top-progress { position: fixed; top: 0; left: 0; right: 0; height: 2px; z-index: 1100; pointer-events: none; opacity: 0; transition: opacity 180ms; }
+.top-progress.is-running, .top-progress.is-finishing { opacity: 1; }
+.top-progress-bar { height: 100%; width: 100%; transform-origin: left; background: var(--accent); box-shadow: 0 0 8px rgba(35, 88, 208, 0.45); transition: transform 420ms var(--ease-out); }
+.top-progress.is-finishing .top-progress-bar { transition-duration: 160ms; }
+
+/* Skeletons: same footprint as the content, so nothing jumps when data arrives */
+.skeleton {
+  display: block; border-radius: 4px; background: linear-gradient(90deg, var(--surface-2) 25%, #f1f5fb 50%, var(--surface-2) 75%);
+  background-size: 200% 100%; animation: shimmer 1.3s linear infinite;
+}
+.skeleton-stack { display: grid; gap: var(--sp-2); }
+@keyframes shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+
+/* Controls respond to touch and pointer */
+.btn, .sidebar-nav a, .password-toggle, .chip {
+  transition: background-color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease), box-shadow 180ms var(--ease), transform var(--t-fast) var(--ease);
+}
+.btn:active:not(:disabled) { transform: scale(0.98); }
+.table tbody tr { transition: background-color var(--t-fast) var(--ease); }
+
+/* Dialogs and toasts land softly */
+.modal-backdrop { animation-duration: 180ms; backdrop-filter: blur(1.5px); }
+.modal { animation: modal-in 240ms var(--ease-out); }
+@keyframes modal-in { from { opacity: 0; transform: translateY(10px) scale(0.985); } to { opacity: 1; transform: none; } }
+.toast { animation: toast-in 240ms var(--ease-out); }
+@keyframes toast-in { from { opacity: 0; transform: translateY(-10px) scale(0.98); } to { opacity: 1; transform: none; } }
+
+/* Inline expand/collapse */
+.danger-zone, .inline-form, .notice, .alert { animation: pop-in 200ms var(--ease-out); }
+.faq details[open] p { animation: pop-in 200ms var(--ease-out); }
+
+/* Smooth scrolling for in-page jumps, and no flash of the wrong scroll position */
+html { scroll-behavior: smooth; }
+.page { scroll-behavior: auto; overscroll-behavior: contain; }

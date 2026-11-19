@@ -1,0 +1,150 @@
+/* =========================================================
+   Dashboard, auth extras, account security, public pages
+   ========================================================= */
+
+/* ---------- Dashboard ---------- */
+.dash-top { display: flex; gap: var(--sp-3); align-items: stretch; margin-bottom: var(--sp-4); }
+.stat-chip { margin: 0; display: flex; flex-direction: column; justify-content: center; min-width: 132px; padding: var(--sp-3) var(--sp-5); background: var(--surface-0); border: 1px solid var(--line); border-radius: var(--radius-md); }
+.stat-chip dt { color: var(--ink-500); font-size: var(--fs-xs); }
+.stat-chip dd { margin: 2px 0 0; color: var(--ink-900); font-size: var(--fs-xl); font-weight: 600; font-variant-numeric: tabular-nums; line-height: 1.2; }
+.search-field { position: relative; flex: 1 1 auto; min-width: 0; display: flex; align-items: center; }
+.search-field > .icon { position: absolute; left: 14px; color: var(--ink-400); pointer-events: none; }
+.search-field input { width: 100%; height: 100%; min-height: 48px; padding: 0 40px 0 40px; border: 1px solid var(--control-border); border-radius: var(--radius-md); background: var(--surface-0); font-size: var(--fs-base); }
+.search-field input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-tint); }
+.search-field kbd { position: absolute; right: 12px; min-width: 20px; padding: 1px 6px; border: 1px solid var(--line-strong); border-radius: 4px; background: var(--surface-1); color: var(--ink-500); font: 500 11px var(--font-mono); text-align: center; pointer-events: none; }
+.search-field input:focus + kbd, .search-field input:not(:placeholder-shown) + kbd { display: none; }
+.dash-none { margin: 0; padding: var(--sp-5); color: var(--ink-500); font-size: var(--fs-sm); text-align: center; }
+.empty-actions { display: inline-flex; gap: var(--sp-2); flex-wrap: wrap; justify-content: center; }
+.skeleton-line-row { display: flex; align-items: center; gap: var(--sp-3); padding: 14px var(--sp-4); border-bottom: 1px solid var(--line); }
+.skeleton-line-row:last-child { border-bottom: 0; }
+
+/* ---------- Auth extras ---------- */
+.password-wrap { position: relative; }
+.password-wrap input { width: 100%; padding-right: 58px; }
+.password-toggle {
+  position: absolute; right: 4px; top: 50%; transform: translateY(-50%); height: calc(var(--control-h) - 8px);
+  padding: 0 10px; border: 0; background: none; color: var(--accent-text); font-size: var(--fs-xs); font-weight: 600; cursor: pointer; border-radius: var(--radius-sm);
+}
+.password-toggle:hover { background: var(--accent-tint); }
+.strength { display: flex; align-items: center; gap: var(--sp-2); margin-top: 6px; }
+.strength-bar { flex: 1; height: 4px; border-radius: 2px; background: var(--surface-2); overflow: hidden; }
+.strength-bar span { display: block; height: 100%; border-radius: 2px; background: var(--red-solid); transition: width 220ms var(--ease-out), background-color 220ms; }
+.strength[data-score="2"] .strength-bar span { background: var(--amber-solid); }
+.strength[data-score="3"] .strength-bar span, .strength[data-score="4"] .strength-bar span { background: var(--green-solid); }
+.strength-label { min-width: 60px; text-align: right; font-size: var(--fs-xs); color: var(--ink-500); }
+.field-hint--tight { margin: calc(-1 * var(--sp-2)) 0 var(--sp-4); }
+.consent { display: flex; gap: var(--sp-2); align-items: flex-start; margin: 0 0 var(--sp-4); font-size: var(--fs-sm); color: var(--ink-700); cursor: pointer; }
+.consent input { margin-top: 3px; accent-color: var(--accent); }
+.auth-divider { display: flex; align-items: center; gap: var(--sp-3); margin: var(--sp-4) 0; color: var(--ink-500); font-size: var(--fs-xs); }
+.auth-divider::before, .auth-divider::after { content: ""; flex: 1; height: 1px; background: var(--line); }
+.btn-github { gap: 8px; background: #1b1f24; border-color: #1b1f24; color: #fff; }
+.btn-github:hover:not(:disabled) { background: #2d333b; border-color: #2d333b; color: #fff; }
+.auth-card a.btn-github { display: inline-flex; justify-content: center; align-items: center; }
+.auth-main { flex-direction: column; gap: var(--sp-4); }
+
+/* ---------- Account security (profile modal) ---------- */
+.profile-actions { display: flex; flex-wrap: wrap; gap: var(--sp-2); align-items: center; }
+.inline-form { display: grid; gap: 0; }
+.danger-zone { margin-top: var(--sp-4); padding: var(--sp-4); border: 1px solid #efc2c2; border-radius: var(--radius-md); background: var(--red-tint); }
+.danger-zone p { margin: 0 0 var(--sp-3); font-size: var(--fs-sm); color: var(--ink-700); }
+
+/* ---------- Sidebar + footer ---------- */
+.sidebar-links { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: var(--sp-4); }
+.sidebar-logout { height: 38px; }
+.sidebar-links a { font-size: var(--fs-sm); color: var(--ink-500); text-decoration: none; }
+.sidebar-links a:hover { color: var(--ink-900); text-decoration: underline; }
+.sidebar-free { margin: var(--sp-2) 0 0; font-size: var(--fs-xs); color: var(--ink-400); }
+.site-footer { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--sp-2) var(--sp-5); padding: var(--sp-5) var(--sp-6); border-top: 1px solid var(--line); font-size: var(--fs-xs); color: var(--ink-500); }
+.site-footer nav { display: flex; flex-wrap: wrap; gap: 4px var(--sp-4); }
+.site-footer a { color: var(--ink-500); text-decoration: none; }
+.site-footer a:hover { color: var(--ink-900); text-decoration: underline; }
+.site-footer.is-compact { border-top: 0; padding: 0; justify-content: center; text-align: center; max-width: 380px; }
+.site-footer.is-compact .site-footer-note { width: 100%; }
+
+/* ---------- Public pages (About, Help, legal) ---------- */
+.public-shell { min-height: 100dvh; display: flex; flex-direction: column; background: var(--surface-0); }
+.public-bar { display: flex; align-items: center; gap: var(--sp-2); padding: 12px var(--sp-6); border-bottom: 1px solid var(--line); }
+.public-brand { display: flex; align-items: center; gap: 10px; margin-right: auto; font-weight: 600; color: var(--ink-900); text-decoration: none; }
+.public-brand:hover { color: var(--ink-900); }
+.public-bar .btn { text-decoration: none; }
+.public-main { flex: 1; padding: var(--sp-8) var(--sp-4) var(--sp-8); }
+.doc { max-width: 70ch; margin: 0 auto; font-size: var(--fs-base); line-height: 1.65; color: var(--ink-700); }
+.doc h1 { font-size: 28px; letter-spacing: -0.02em; margin-bottom: var(--sp-2); color: var(--ink-900); }
+.doc h2 { margin: var(--sp-8) 0 var(--sp-2); font-size: 18px; color: var(--ink-900); }
+.doc p, .doc ul, .doc ol { margin: 0 0 var(--sp-3); }
+.doc ul, .doc ol { padding-left: 1.3em; }
+.doc li { margin-bottom: 6px; }
+.doc-updated { color: var(--ink-500); font-size: var(--fs-sm); margin-bottom: var(--sp-6); }
+.faq { border-top: 1px solid var(--line); }
+.faq details { border-bottom: 1px solid var(--line); }
+.faq summary { padding: 14px 0; font-weight: 500; color: var(--ink-900); cursor: pointer; list-style: none; display: flex; justify-content: space-between; gap: var(--sp-3); }
+.faq summary::-webkit-details-marker { display: none; }
+.faq summary::after { content: "+"; color: var(--ink-500); font-size: 18px; line-height: 1; transition: transform 160ms var(--ease); }
+.faq details[open] summary::after { transform: rotate(45deg); }
+.faq details p { margin: 0 0 14px; }
+.doc .table-wrap { margin: var(--sp-4) 0; }
+
+/* Fields inside inline forms need their own rhythm */
+.inline-form .field, .danger-zone .field { margin-bottom: var(--sp-3); }
+.inline-form .profile-actions, .danger-zone .profile-actions { margin-top: var(--sp-3); }
+
+/* =========================================================
+   Responsive polish (phone and tablet)
+   ========================================================= */
+
+/* Tab strip: fade the side that still has tabs behind it */
+.tabs-wrap { position: relative; }
+.tabs-wrap::before, .tabs-wrap::after {
+  content: ""; position: absolute; top: 0; bottom: 1px; width: 28px; z-index: 2; pointer-events: none; opacity: 0; transition: opacity 160ms;
+}
+.tabs-wrap::before { left: 0; background: linear-gradient(90deg, var(--surface-0), rgba(255, 255, 255, 0)); }
+.tabs-wrap::after { right: 0; background: linear-gradient(270deg, var(--surface-0), rgba(255, 255, 255, 0)); }
+.tabs-wrap.has-left::before, .tabs-wrap.has-right::after { opacity: 1; }
+
+@media (max-width: 860px) {
+  .page-inner.dash { padding-top: var(--sp-5); }
+  .project-header { padding-top: var(--sp-3); }
+}
+
+@media (max-width: 640px) {
+  .page-head { flex-wrap: nowrap; gap: var(--sp-3); }
+  .page-head h1, .project-header h1 { font-size: 20px; }
+
+
+  /* Project header: title gets the full width, settings becomes an icon */
+  .project-settings-btn { width: 36px; height: 36px; padding: 0; justify-content: center; }
+  .project-settings-btn .btn-label { display: none; }
+  .project-settings-btn .icon { margin: 0; }
+  .project-header-row { align-items: flex-start; }
+
+  /* Graph toolbar: wrap, so nothing hides off the edge */
+  .toolbar-group { flex-wrap: wrap; overflow: visible; margin: 0; padding: 0; }
+  .toolbar-group .btn { flex: 0 1 auto; }
+
+  .site-footer { padding: var(--sp-4); }
+  .public-bar { padding: 10px var(--sp-4); }
+  .public-main { padding: var(--sp-6) var(--sp-4); }
+  .doc h1 { font-size: 24px; }
+}
+
+/* Touch devices: comfortable tap targets for the new controls */
+@media (pointer: coarse) {
+  .search-field input { min-height: 48px; }
+  .password-toggle { min-width: 52px; }
+  .faq summary { padding: 16px 0; }
+}
+
+/* Short landscape phones: don't let the auth card and modals get cut off */
+@media (max-height: 520px) {
+  .auth-shell { padding-top: var(--sp-4); }
+  .modal { max-height: calc(100dvh - 16px); }
+}
+
+@media (max-width: 520px) {
+  .dash-top { flex-direction: column; }
+  .stat-chip { flex-direction: row; align-items: baseline; justify-content: space-between; gap: var(--sp-3); padding: var(--sp-3) var(--sp-4); }
+}
+
+.github-block { margin-top: var(--sp-4); }
+.github-block .auth-divider { margin: 0 0 var(--sp-4); }
+@media (max-width: 860px) { .topbar--dash { display: none; } }
