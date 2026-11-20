@@ -29,7 +29,7 @@ def _fail(message: str) -> RedirectResponse:
 
 
 @router.get("/login", dependencies=[Depends(ratelimit.limit("github-login", 30, 600))])
-def github_login(request: Request):
+def github_login(request: Request, switch: bool = False):
     if not settings.github_enabled:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "GitHub sign-in is not set up on this server")
     params = {
@@ -39,6 +39,9 @@ def github_login(request: Request):
         "state": create_state_token(secrets.token_urlsafe(8)),
         "allow_signup": "true",
     }
+    if switch:
+        # Makes GitHub show its account chooser, so people can pick or add a different account.
+        params["prompt"] = "select_account"
     return RedirectResponse(f"{AUTHORIZE_URL}?{urlencode(params)}", status_code=302)
 
 
