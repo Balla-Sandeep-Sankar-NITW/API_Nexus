@@ -14,7 +14,7 @@ ENV/
 virtualenv/
 .python-version
 
-__pycache__/
+*__pycache__/
 *.py[cod]
 *.so
 .Python
