@@ -95,9 +95,12 @@ def github_callback(request: Request, code: str = "", state: str = "", error: st
                 github_id=gh_id,
             )
             db.add(user)
-    if not user.is_active:
-        return _fail("This account is disabled.")
+    # Save first: a brand-new user has no is_active value until the database fills in its default,
+    # so checking before this point wrongly treated every new GitHub account as disabled.
     db.flush()
+    if user.is_active is False:
+        db.rollback()
+        return _fail("This account is disabled.")
     db.add(models.LoginEvent(user_id=user.id, success=True))
     db.commit()
     db.refresh(user)
