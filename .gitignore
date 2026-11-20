@@ -84,3 +84,5 @@ reports/
 .vercel/
 .netlify/
 .firebase/
+
+CHANGES.md

@@ -148,3 +148,5 @@
 .github-block { margin-top: var(--sp-4); }
 .github-block .auth-divider { margin: 0 0 var(--sp-4); }
 @media (max-width: 860px) { .topbar--dash { display: none; } }
+.github-switch { display: block; margin-top: var(--sp-3); text-align: center; font-size: var(--fs-sm); color: var(--ink-500); }
+.github-switch:hover { color: var(--accent-text); }
